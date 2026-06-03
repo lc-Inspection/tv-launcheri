@@ -2264,9 +2264,22 @@ function updateSheetsViewLink() {
 // ────────────────────────────
 // ŞİFRE KONTROLÜ
 // ────────────────────────────
-let klasmanUnlocked = false;
+// sessionStorage ile çalışır: sekme açık olduğu sürece bir kez şifre yeter.
+// Sekme kapatılınca sıfırlanır, yeni açılışta tekrar sorar.
+const SESSION_KEY = 'lc_session_unlocked';
+let klasmanUnlocked = sessionStorage.getItem(SESSION_KEY) === '1';
 let pendingNavEl = null;
-let _pwMandatory = false; // İlk açılışta zorunlu mod
+let _pwMandatory = false;
+
+// Sayfa ilk açılışında şifre sor (henüz unlock olmadıysa)
+function initPasswordGate() {
+  if (!klasmanUnlocked) {
+    setTimeout(() => _openPwModal(true), 400);
+  } else {
+    // Zaten unlock — arka planda sync yap
+    setTimeout(() => autoFetchOnStartup(), 600);
+  }
+}
 
 function requirePassword(navEl) {
   if (klasmanUnlocked) {
@@ -2286,9 +2299,9 @@ function _openPwModal(mandatory) {
   const cancelRow = document.getElementById('pw-cancel-row');
 
   if (mandatory) {
-    iconEl.textContent  = '🔑';
-    titleEl.textContent = 'Hoş Geldiniz!';
-    subEl.textContent   = 'İlk açılış — şifrenizi girerek verileri senkronize edin';
+    iconEl.textContent  = '🔐';
+    titleEl.textContent = 'Giriş Yap';
+    subEl.textContent   = 'Devam etmek için şifrenizi girin';
     cancelRow.style.display = 'none';
   } else {
     iconEl.textContent  = '🔐';
@@ -2330,13 +2343,13 @@ async function checkPassword() {
 
   if (val === correctPw) {
     klasmanUnlocked = true;
+    sessionStorage.setItem(SESSION_KEY, '1');
     document.getElementById('pw-overlay').style.display = 'none';
 
     if (_pwMandatory) {
-      // İlk açılış: bağlantıları yenile ve verileri çek
       _pwMandatory = false;
-      showStartupBanner('🔄 Veriler yenileniyor...');
-      await _firstRunSync();
+      // İlk açılış: arka planda senkronize et
+      setTimeout(() => autoFetchOnStartup(), 300);
     } else if (pendingNavEl) {
       showPage('klasmanlar', pendingNavEl);
     }
@@ -4968,14 +4981,8 @@ renderEditor();
 renderDashboard();
 updateSidebar();
 
-// Yeni bilgisayar tespiti: ilk açılışta zorunlu şifre sor
-if (_isNewDevice) {
-  // Sayfa hazır olduktan sonra modal'ı aç
-  setTimeout(() => _openPwModal(true), 600);
-} else {
-  // Mevcut cihaz: arka planda sessizce senkronize et
-  setTimeout(() => autoFetchOnStartup(), 800);
-}
+// Şifre kapısını başlat
+initPasswordGate();
 
 // Modal kapatma - dış tıklama
 document.getElementById('modal').addEventListener('click', function(e) {
