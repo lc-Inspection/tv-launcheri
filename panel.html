@@ -2275,20 +2275,24 @@ async function pushPerformansRawToSheets(liste) {
   try {
     // kayitlar dizisi olmadan gönder — boyut sınırını aşmamak için
     // (kayitlar ayrıca setInspectorKayitlar ile gönderilir)
-    const listeTemiz = liste.map(inspector => {
-      const klasmanlarTemiz = {};
-      Object.entries(inspector.klasmanlar || {}).forEach(([k, v]) => {
-        klasmanlarTemiz[k] = {
-          adet: v.adet,
-          standartSure: v.standartSure,
-          kayitFiiliSure: v.kayitFiiliSure,
-          hizPerf: v.hizPerf,
-          hacimPerf: v.hacimPerf
-          // kayitlar KASITLI OLARAK ÇIKARILDI — ayrı sekmeye gönderilir
-        };
-      });
-      return { ...inspector, klasmanlar: klasmanlarTemiz };
-    });
+    // YENİ
+const listeTemiz = liste.map(inspector => {
+  const klasmanlarTemiz = {};
+  Object.entries(inspector.klasmanlar || {}).forEach(([k, v]) => {
+    klasmanlarTemiz[k] = {
+      adet: v.adet, standartSure: v.standartSure,
+      kayitFiiliSure: v.kayitFiiliSure, hizPerf: v.hizPerf, hacimPerf: v.hacimPerf
+    };
+  });
+  return {
+    ...inspector,
+    klasmanlar: klasmanlarTemiz,
+    toplamMesaistiSaniye: inspector.toplamMesaistiSaniye || 0,
+    gunlukOvertimeDetay: inspector.gunlukOvertimeDetay || {},
+    hedefVerimlilik: inspector.hedefVerimlilik || 100,
+    orneklemeMod: inspector.orneklemeMod || 'kapali'
+  };
+});
 
     await fetch(url, {
       method: 'POST',
@@ -2523,15 +2527,22 @@ async function pushPerformansManual(ev) {
     // 2) Ham JSON'u gönder — kayitlar olmadan (boyut sınırı aşılmasın)
     // Not: kayitlar ayrıca pushInspectorKayitlarToSheets ile gönderilecek
     const performansDataTemiz = performansData.map(inspector => {
-      const klasmanlarTemiz = {};
-      Object.entries(inspector.klasmanlar || {}).forEach(([k, v]) => {
-        klasmanlarTemiz[k] = {
-          adet: v.adet, standartSure: v.standartSure,
-          kayitFiiliSure: v.kayitFiiliSure, hizPerf: v.hizPerf, hacimPerf: v.hacimPerf
-        };
-      });
-      return { ...inspector, klasmanlar: klasmanlarTemiz };
-    });
+  const klasmanlarTemiz = {};
+  Object.entries(inspector.klasmanlar || {}).forEach(([k, v]) => {
+    klasmanlarTemiz[k] = {
+      adet: v.adet, standartSure: v.standartSure,
+      kayitFiiliSure: v.kayitFiiliSure, hizPerf: v.hizPerf, hacimPerf: v.hacimPerf
+    };
+  });
+  return {
+    ...inspector,
+    klasmanlar: klasmanlarTemiz,
+    toplamMesaistiSaniye: inspector.toplamMesaistiSaniye || 0,
+    gunlukOvertimeDetay: inspector.gunlukOvertimeDetay || {},
+    hedefVerimlilik: inspector.hedefVerimlilik || (parseFloat(document.getElementById('inp-verimlilik')?.value) || 100),
+    orneklemeMod: document.querySelector('input[name="ornekleme-mod"]:checked')?.value || 'kapali'
+  };
+});
     await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
