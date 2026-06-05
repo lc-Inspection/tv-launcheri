@@ -76,8 +76,7 @@ body {
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 .top-badge {
   font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 99px;
-  background: rgba(33,150,243,.15); color: var(--blue4);<script src="LCW_PATCH_localStorage_fix.js"></script>
-
+  background: rgba(33,150,243,.15); color: var(--blue4);
   border: 1px solid rgba(33,150,243,.2); letter-spacing: .3px;
 }
 .top-clock {
@@ -2236,21 +2235,86 @@ async function pushPerformansRawToSheets(liste) {
   const token = appConfig.sheetsApiToken;
   if (!url || !token) return;
   try {
+    // kayitlar dizisi olmadan gönder — boyut sınırını aşmamak için
+    // (kayitlar ayrıca setInspectorKayitlar ile gönderilir)
+    const listeTemiz = liste.map(inspector => {
+      const klasmanlarTemiz = {};
+      Object.entries(inspector.klasmanlar || {}).forEach(([k, v]) => {
+        klasmanlarTemiz[k] = {
+          adet: v.adet,
+          standartSure: v.standartSure,
+          kayitFiiliSure: v.kayitFiiliSure,
+          hizPerf: v.hizPerf,
+          hacimPerf: v.hacimPerf
+          // kayitlar KASITLI OLARAK ÇIKARILDI — ayrı sekmeye gönderilir
+        };
+      });
+      return { ...inspector, klasmanlar: klasmanlarTemiz };
+    });
+
     await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'setPerformansRaw',
         token: token,
-        performansData: liste,
+        performansData: listeTemiz,
         savedAt: new Date().toISOString()
       }),
       mode: 'no-cors'
     });
     console.log('✅ Ham performans verisi Sheets\'e gönderildi:', liste.length, 'inspector');
+
+    // Her inspector'ın kayitlar verisini ayrı sekmeye gönder
+    await pushInspectorKayitlarToSheets(liste, url, token);
+
   } catch(err) {
     console.warn('Ham performans push hatası:', err.message);
   }
+}
+
+// ─────────────────────────────────────────────
+// HER INSPECTOR'IN KAYITLARINI AYRI SEKMEYE GÖNDER
+// Google Sheets > InspectorKayitlar sekmesi (v5.3)
+// ─────────────────────────────────────────────
+async function pushInspectorKayitlarToSheets(liste, url, token) {
+  if (!url || !token || !liste || !liste.length) return;
+  // Her inspector sırayla gönderilir (no-cors — yanıt okunamaz ama veri gider)
+  for (const inspector of liste) {
+    try {
+      // klasmanlar içindeki kayitlar'ı gönder (tarihler JSON string olarak gider)
+      const kayitlar = {};
+      Object.entries(inspector.klasmanlar || {}).forEach(([k, v]) => {
+        if (Array.isArray(v.kayitlar) && v.kayitlar.length > 0) {
+          kayitlar[k] = v.kayitlar.map(r => ({
+            adet: r.adet,
+            kontrolAdetSuresi: r.kontrolAdetSuresi,
+            istasyonSuresi: r.istasyonSuresi,
+            standartSure: r.standartSure,
+            kayitFiiliSure: r.kayitFiiliSure,
+            baslangic: r.baslangic ? (r.baslangic instanceof Date ? r.baslangic.toISOString() : r.baslangic) : null,
+            bitis: r.bitis ? (r.bitis instanceof Date ? r.bitis.toISOString() : r.bitis) : null,
+            tarihGecerli: r.tarihGecerli || false
+          }));
+        }
+      });
+
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          action: 'setInspectorKayitlar',
+          token: token,
+          inspectorAdi: inspector.ins,
+          kayitlar: kayitlar
+        }),
+        mode: 'no-cors'
+      });
+    } catch(err) {
+      console.warn('Inspector kayıt push hatası (' + inspector.ins + '):', err.message);
+    }
+  }
+  console.log('✅ Inspector kayıtları Sheets\'e gönderildi:', liste.length, 'inspector');
 }
 
 // ─────────────────────────────────────────────
@@ -2418,13 +2482,27 @@ async function pushPerformansManual(ev) {
       mode: 'no-cors'
     });
 
-    // 2) Ham JSON'u gönder (farklı bilgisayardan çekilebilmesi için)
+    // 2) Ham JSON'u gönder — kayitlar olmadan (boyut sınırı aşılmasın)
+    // Not: kayitlar ayrıca pushInspectorKayitlarToSheets ile gönderilecek
+    const performansDataTemiz = performansData.map(inspector => {
+      const klasmanlarTemiz = {};
+      Object.entries(inspector.klasmanlar || {}).forEach(([k, v]) => {
+        klasmanlarTemiz[k] = {
+          adet: v.adet, standartSure: v.standartSure,
+          kayitFiiliSure: v.kayitFiiliSure, hizPerf: v.hizPerf, hacimPerf: v.hacimPerf
+        };
+      });
+      return { ...inspector, klasmanlar: klasmanlarTemiz };
+    });
     await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'setPerformansRaw', token, performansData, savedAt: new Date().toISOString() }),
+      body: JSON.stringify({ action: 'setPerformansRaw', token, performansData: performansDataTemiz, savedAt: new Date().toISOString() }),
       mode: 'no-cors'
     });
+
+    // 3) Her inspector'ın ham kayıtlarını ayrı sekmeye gönder
+    await pushInspectorKayitlarToSheets(performansData, url, token);
 
     showSuccessMessage(`✅ ${performansData.length} inspector verisi Google Sheets'e gönderildi!`);
   } catch(err) {
@@ -3421,12 +3499,41 @@ function toggleKlasmanDetails(element) {
 // ────────────────────────────
 // INSPECTOR DETAY MODAL
 // ────────────────────────────
-function showInspectorDetail(inspectorName) {
+async function showInspectorDetail(inspectorName) {
   const inspector = performansData.find(i => i.ins === inspectorName);
   if (!inspector) return;
   selectedInspectorDetail = inspector;
 
   document.getElementById('detail-modal-title').textContent = `${inspector.ins} — Detaylı Performans`;
+
+  // Önce mevcut kayitlar'ı kontrol et; yoksa Sheets'ten çek
+  const herhangiKayitVar = Object.values(inspector.klasmanlar || {}).some(
+    kd => Array.isArray(kd.kayitlar) && kd.kayitlar.length > 0
+  );
+
+  if (!herhangiKayitVar) {
+    const url   = appConfig.sheetsWebAppUrl;
+    const token = appConfig.sheetsApiToken;
+    if (url && token) {
+      try {
+        const data = await jsonpFetch(url, { action: 'getInspectorKayitlar', token, inspectorAdi: inspectorName });
+        if (data.status === 'ok' && data.kayitlar && typeof data.kayitlar === 'object') {
+          // Çekilen kayitlar'ı inspector nesnesine işle
+          Object.entries(data.kayitlar).forEach(([klasmanAd, kayitlarArr]) => {
+            if (inspector.klasmanlar[klasmanAd] && Array.isArray(kayitlarArr)) {
+              inspector.klasmanlar[klasmanAd].kayitlar = kayitlarArr.map(r => ({
+                ...r,
+                baslangic: r.baslangic ? (r.baslangic instanceof Date ? r.baslangic : (() => { const d = new Date(r.baslangic); return isNaN(d.getTime()) ? null : d; })()) : null,
+                bitis:     r.bitis     ? (r.bitis     instanceof Date ? r.bitis     : (() => { const d = new Date(r.bitis);     return isNaN(d.getTime()) ? null : d; })()) : null
+              }));
+            }
+          });
+        }
+      } catch(e) {
+        console.warn('getInspectorKayitlar hatası:', e.message);
+      }
+    }
+  }
 
   // Tüm kayıtları düz listeye çevir
   const tumKayitlar = [];
@@ -6204,6 +6311,5 @@ console.log(`✅ LC Waikiki Inspection Performans Paneli v${APP_VERSION} hazır!
 console.log(`📊 ${klasmanlar.length} klasman, ${performansData.length} inspector verisi yüklendi`);
 
 </script>
-  <script src="LCW_PATCH_localStorage_fix.js"></script>
 </body>
 </html>
