@@ -1347,6 +1347,18 @@ label { font-size: 12px; font-weight: 500; color: var(--muted); display: block; 
             </select>
           </div>
         </div>
+        <!-- InspectionYapilanDepo Filtresi -->
+        <div style="margin-top:12px;padding:10px 14px;background:linear-gradient(135deg,#E3F2FD 0%,#fff 100%);border:1px solid var(--lblue);border-radius:9px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <span style="font-size:15px">🏭</span>
+          <span style="font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap">InspectionYapilanDepo Filtresi</span>
+          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">
+            <label style="margin:0;font-size:11px;color:var(--muted);white-space:nowrap">Sütun (T)</label>
+            <select id="col-yapilan-depo" onchange="performansHesapla()" style="flex:1">
+              <option value="">— Filtre yok (tüm satırlar) —</option>
+            </select>
+          </div>
+          <span style="font-size:11px;color:var(--muted)">Seçilirse boş olan satırlar hesaplamaya dahil edilmez.</span>
+        </div>
         <!-- Verimlilik Ayarı -->
         <div style="margin-top:14px;padding:12px 14px;background:linear-gradient(135deg,#FFF8E1 0%,#fff 100%);border:1px solid #FFE082;border-radius:9px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:8px">
@@ -4522,6 +4534,8 @@ function fillColSelects(){
   });
   const mesaiEl = document.getElementById('col-mesai');
   if (mesaiEl) mesaiEl.innerHTML = '<option value="">— opsiyonel —</option>' + excelCols.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const yapilanDepoEl = document.getElementById('col-yapilan-depo');
+  if (yapilanDepoEl) yapilanDepoEl.innerHTML = '<option value="">— Filtre yok (tüm satırlar) —</option>' + excelCols.map(c=>`<option value="${c}">${c}</option>`).join('');
   
   // Otomatik tahmin
   const klasmanCol = excelCols[0] || '';
@@ -4538,6 +4552,10 @@ function fillColSelects(){
   
   const mesaiCol = excelCols.find(c => c.toLowerCase().includes('mesai') || c.toLowerCase().includes('shift') || c.toLowerCase().includes('çalışmasüresi')) || '';
   if (mesaiCol && document.getElementById('col-mesai')) document.getElementById('col-mesai').value = mesaiCol;
+
+  // InspectionYapilanDepo otomatik tahmin
+  const yapilanDepoColAuto = excelCols.find(c => c.toLowerCase().replace(/[^a-z]/g,'').includes('yapilandepo') || c.toLowerCase().replace(/\s/g,'') === 'inspectionyapilandepo') || excelCols[19] || '';
+  if (yapilanDepoColAuto && document.getElementById('col-yapilan-depo')) document.getElementById('col-yapilan-depo').value = yapilanDepoColAuto;
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -4841,6 +4859,7 @@ function performansHesapla(){
   const baslangicCol = document.getElementById('col-baslangic')?.value || '';
   const bitisCol = document.getElementById('col-bitis')?.value || '';
   const mesaiCol = document.getElementById('col-mesai')?.value || '';
+  const yapilanDepoCol = document.getElementById('col-yapilan-depo')?.value || '';
   const verimlilikHedef = Math.max(1, parseFloat(document.getElementById('inp-verimlilik')?.value) || 100);
 
   // Verimlilik açıklama güncelle
@@ -4880,6 +4899,12 @@ function performansHesapla(){
     const baslangicTarih = baslangicCol ? row[baslangicCol] : null;
     const bitisTarih = bitisCol ? row[bitisCol] : null;
     const mesaiHam = mesaiCol ? row[mesaiCol] : null;
+
+    // InspectionYapilanDepo filtresi: sütun seçiliyse boş satırları atla
+    if (yapilanDepoCol) {
+      const depoVal = String(row[yapilanDepoCol] ?? '').trim();
+      if (!depoVal) return;
+    }
     
     if(!excelKlasman || !ins || !adet) return;
     
