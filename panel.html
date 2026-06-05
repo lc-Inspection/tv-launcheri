@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title> Inspection Performans Paneli</title>
+<title>LC Waikiki — Inspection Performans Paneli</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -3685,6 +3685,15 @@ async function showInspectorDetail(inspectorName) {
           <td style="padding:9px 12px;text-align:center;font-size:11px;color:var(--muted);">
             ${k.tarihGecerli && k.bitis ? fmtTarih(k.bitis) : '—'}
           </td>
+          <td style="padding:9px 12px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;">
+            ${(() => {
+              if (!k.kayitFiiliSure || !k.standartSure) return '<span style="color:var(--muted2)">—</span>';
+              const oran = Math.round((k.kayitFiiliSure / k.standartSure) * 100);
+              const renk = oran <= 100 ? '#00897B' : oran <= 120 ? '#F57F17' : '#C62828';
+              const emoji = oran <= 100 ? '✓' : oran <= 120 ? '↑' : '↑↑';
+              return `<span style="color:${renk}">${oran}%</span><div style="font-size:9px;font-weight:400;color:${renk}">${emoji} ${oran<=100?'hedef içi':'hedef aşıldı'}</div>`;
+            })()}
+          </td>
         </tr>`;
       });
     });
@@ -3799,6 +3808,7 @@ async function showInspectorDetail(inspectorName) {
             <th style="padding:10px 12px;text-align:center;font-size:11px;">Ort. Kontrol<br><span style="opacity:.6;font-weight:400">(sn/adet)</span></th>
             <th style="padding:10px 12px;text-align:center;font-size:11px;">Başlangıç</th>
             <th style="padding:10px 12px;text-align:center;font-size:11px;">Bitiş</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;">Oran<br><span style="opacity:.6;font-weight:400">(Ger./Std.)</span></th>
           </tr>
         </thead>
         <tbody id="det-kayit-tbody">
@@ -3812,6 +3822,7 @@ async function showInspectorDetail(inspectorName) {
       Standart = (Kontrol Süresi × Adet) + İstasyon &nbsp;|&nbsp;
       Gerçekleşen = Başlangıç–Bitiş farkı &nbsp;|&nbsp;
       Ort. Kontrol = Gerçekleşen ÷ Adet &nbsp;|&nbsp;
+      Oran = Gerçekleşen ÷ Standart × 100 &nbsp;|&nbsp;
       <span style="color:#00897B;">✓ hedef</span> = Ort. ≤ Standart kontrol süresi
     </div>
   `;
@@ -3881,24 +3892,186 @@ function exportToExcel() {
 
 function exportInspectorDetail() {
   if (!selectedInspectorDetail) return;
-  
   const inspector = selectedInspectorDetail;
-  const detailData = Object.entries(inspector.klasmanlar).map(([klasman, data]) => {
-    const klasmanPerf = data.hizPerf ?? 0;
-    return {
-      'Klasman': klasman,
-      'Adet': data.adet,
-      'Standart Süre (dk)': Math.round((data.standartSure||0)/60),
-      'Performans (%)': klasmanPerf
-    };
+
+  // ── Yardımcılar ──
+  function fmtSnExcel(sn) {
+    if (!sn || sn <= 0) return '—';
+    const s = Math.round(sn);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sc = s % 60;
+    if (h > 0) return h + 's ' + String(m).padStart(2,'0') + 'd ' + String(sc).padStart(2,'0') + 'sn';
+    if (m > 0) return m + 'd ' + String(sc).padStart(2,'0') + 'sn';
+    return sc + 'sn';
+  }
+  function fmtTarihExcel(d) {
+    if (!d) return '—';
+    const dt = d instanceof Date ? d : new Date(d);
+    if (isNaN(dt.getTime())) return '—';
+    return dt.toLocaleDateString('tr-TR', {day:'2-digit',month:'2-digit',year:'numeric'}) +
+           ' ' + dt.toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit'});
+  }
+  function oranHesapla(fiili, standart) {
+    if (!fiili || !standart) return '—';
+    return Math.round((fiili / standart) * 100) + '%';
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // ── SAYFA 1: Özet (Klasman bazında) ──
+  const ozetRows = Object.entries(inspector.klasmanlar).map(([klasman, kd]) => ({
+    'Klasman':              klasman,
+    'Toplam Adet':          kd.adet || 0,
+    'Standart Süre':        fmtSnExcel(kd.standartSure),
+    'Standart Süre (sn)':   kd.standartSure || 0,
+    'Gerçekleşen Süre':     fmtSnExcel(kd.kayitFiiliSure),
+    'Gerçekleşen (sn)':     kd.kayitFiiliSure || 0,
+    'Oran (Ger./Std.)':     oranHesapla(kd.kayitFiiliSure, kd.standartSure),
+    'Hız Performansı (%)':  kd.hizPerf ?? '—'
+  }));
+  const wsOzet = XLSX.utils.json_to_sheet(ozetRows);
+
+  // Sütun genişlikleri
+  wsOzet['!cols'] = [
+    {wch:22},{wch:14},{wch:16},{wch:18},{wch:18},{wch:18},{wch:18},{wch:20}
+  ];
+
+  // Header rengi (A1:H1) — koyu lacivert
+  const ozetRange = XLSX.utils.decode_range(wsOzet['!ref']);
+  for (let C = ozetRange.s.c; C <= ozetRange.e.c; C++) {
+    const cell = wsOzet[XLSX.utils.encode_cell({r:0, c:C})];
+    if (cell) {
+      cell.s = {
+        font:    { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+        fill:    { fgColor: { rgb: '0B1F3A' }, patternType: 'solid' },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+      };
+    }
+  }
+
+  // Veri satırları renklendirme
+  for (let R = 1; R <= ozetRange.e.r; R++) {
+    const oranCell = wsOzet[XLSX.utils.encode_cell({r:R, c:6})]; // Oran sütunu
+    const oranVal  = oranCell ? parseInt(oranCell.v) : NaN;
+    let rowColor = 'FFFFFF';
+    if (!isNaN(oranVal)) {
+      if (oranVal <= 100)       rowColor = 'E0F2F1'; // yeşil
+      else if (oranVal <= 120)  rowColor = 'FFF8E1'; // amber
+      else                      rowColor = 'FFEBEE'; // kırmızı
+    }
+    for (let C = ozetRange.s.c; C <= ozetRange.e.c; C++) {
+      const cell = wsOzet[XLSX.utils.encode_cell({r:R, c:C})];
+      if (cell) {
+        cell.s = {
+          fill: { fgColor: { rgb: R % 2 === 0 ? rowColor : rowColor.replace(/^(E0|FF|FF)/,'F') }, patternType: 'solid' },
+          alignment: { horizontal: C >= 1 ? 'center' : 'left', vertical: 'center' },
+          border: {
+            bottom: { style: 'thin', color: { rgb: 'CFE3F7' } },
+            right:  { style: 'thin', color: { rgb: 'CFE3F7' } }
+          }
+        };
+      }
+    }
+  }
+  XLSX.utils.book_append_sheet(wb, wsOzet, 'Özet');
+
+  // ── SAYFA 2: Kayıt Detayı (satır bazında) ──
+  const kayitRows = [];
+  Object.entries(inspector.klasmanlar).forEach(([klasman, kd]) => {
+    (kd.kayitlar || []).forEach((k, i) => {
+      const fiili = k.kayitFiiliSure || 0;
+      const std   = k.standartSure   || 0;
+      const oran  = fiili && std ? Math.round((fiili / std) * 100) : null;
+      kayitRows.push({
+        '#':                    kayitRows.length + 1,
+        'Klasman':              klasman,
+        'Adet':                 k.adet || 0,
+        'Kontrol Süresi (sn)':  k.kontrolAdetSuresi || 0,
+        'İstasyon Süresi':      fmtSnExcel(k.istasyonSuresi),
+        'Standart Süre':        fmtSnExcel(std),
+        'Standart Süre (sn)':   std,
+        'Gerçekleşen Süre':     fmtSnExcel(fiili),
+        'Gerçekleşen (sn)':     fiili || '—',
+        'Oran (Ger./Std.)':     oran !== null ? oran + '%' : '—',
+        'Ort. Kontrol (sn/ad)': k.adet > 0 && fiili > 0 ? Math.round(fiili / k.adet) : '—',
+        'Başlangıç':            fmtTarihExcel(k.baslangic),
+        'Bitiş':                fmtTarihExcel(k.bitis),
+        'Tarih Geçerli':        k.tarihGecerli ? 'Evet' : 'Hayır'
+      });
+    });
   });
 
-  const workbook = XLSX.utils.book_new();
-  const worksheet = XLSX.utils.json_to_sheet(detailData);
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Detay');
+  const wsKayit = XLSX.utils.json_to_sheet(kayitRows.length ? kayitRows : [{'Bilgi':'Kayıt verisi yok'}]);
+  wsKayit['!cols'] = [
+    {wch:5},{wch:20},{wch:8},{wch:18},{wch:16},{wch:16},{wch:18},{wch:18},{wch:18},{wch:18},{wch:18},{wch:18},{wch:18},{wch:14}
+  ];
 
-  const fileName = `${inspector.ins.replace(/\s+/g, '_')}_Detay.xlsx`;
-  XLSX.writeFile(workbook, fileName);
+  // Kayıt sayfası header rengi
+  if (kayitRows.length) {
+    const kayitRange = XLSX.utils.decode_range(wsKayit['!ref']);
+    for (let C = kayitRange.s.c; C <= kayitRange.e.c; C++) {
+      const cell = wsKayit[XLSX.utils.encode_cell({r:0, c:C})];
+      if (cell) {
+        cell.s = {
+          font:  { bold: true, color: { rgb: 'FFFFFF' }, sz: 10 },
+          fill:  { fgColor: { rgb: '102848' }, patternType: 'solid' },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+        };
+      }
+    }
+    // Veri satırları
+    for (let R = 1; R <= kayitRange.e.r; R++) {
+      const oranCell = wsKayit[XLSX.utils.encode_cell({r:R, c:9})]; // Oran
+      const oranVal  = oranCell ? parseInt(oranCell.v) : NaN;
+      const bg = isNaN(oranVal) ? 'FFFFFF' :
+                 oranVal <= 100 ? (R%2===0?'E0F2F1':'F1FAF9') :
+                 oranVal <= 120 ? (R%2===0?'FFF8E1':'FFFCF0') :
+                                  (R%2===0?'FFEBEE':'FFF5F5');
+      for (let C = kayitRange.s.c; C <= kayitRange.e.c; C++) {
+        const cell = wsKayit[XLSX.utils.encode_cell({r:R, c:C})];
+        if (cell) {
+          cell.s = {
+            fill: { fgColor: { rgb: bg }, patternType: 'solid' },
+            alignment: { horizontal: C <= 1 || C === 11 || C === 12 ? 'left' : 'center', vertical: 'center' },
+            border: { bottom: { style: 'thin', color: { rgb: 'CFE3F7' } } }
+          };
+        }
+      }
+    }
+  }
+  XLSX.utils.book_append_sheet(wb, wsKayit, 'Kayıt Detayı');
+
+  // ── SAYFA 3: Inspector Özet ──
+  const hamPerf  = inspector.genelHizPerf ?? 0;
+  const hedef    = Math.max(1, parseFloat(document.getElementById('inp-verimlilik')?.value) || 100);
+  const duzPerf  = Math.round(hamPerf * (100 / hedef));
+  const genelRows = [
+    { 'Alan': 'Inspector Adı',        'Değer': inspector.ins },
+    { 'Alan': 'Toplam Adet',          'Değer': inspector.adet || 0 },
+    { 'Alan': 'Toplam Kayıt',         'Değer': inspector.kayit || 0 },
+    { 'Alan': 'Klasman Sayısı',       'Değer': Object.keys(inspector.klasmanlar).length },
+    { 'Alan': 'Çalışma Gün Sayısı',   'Değer': inspector.gunSayisi || 0 },
+    { 'Alan': 'Standart Süre',        'Değer': fmtSnExcel(inspector.standartSure) },
+    { 'Alan': 'Mesai Süresi',         'Değer': fmtSnExcel(inspector.mesaiSure) },
+    { 'Alan': 'Ham Hız Performansı',  'Değer': hamPerf !== null ? hamPerf + '%' : '—' },
+    { 'Alan': 'Düz. Performans',      'Değer': duzPerf + '%' },
+    { 'Alan': 'Rapor Tarihi',         'Değer': new Date().toLocaleDateString('tr-TR') }
+  ];
+  const wsGenel = XLSX.utils.json_to_sheet(genelRows);
+  wsGenel['!cols'] = [{wch:24},{wch:28}];
+  // Header rengi
+  ['A1','B1'].forEach(ref => {
+    if (wsGenel[ref]) wsGenel[ref].s = {
+      font: { bold:true, color:{rgb:'FFFFFF'}, sz:11 },
+      fill: { fgColor:{rgb:'0B1F3A'}, patternType:'solid' },
+      alignment: { horizontal:'center' }
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, wsGenel, 'Inspector Özet');
+
+  const fileName = `${inspector.ins.replace(/\s+/g, '_')}_Detay_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb, fileName);
 }
 
 // ────────────────────────────
