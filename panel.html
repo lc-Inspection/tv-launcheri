@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inspection Performans Paneli</title>
+<title> Inspection Performans Paneli</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -1549,7 +1549,7 @@ label { font-size: 12px; font-weight: 500; color: var(--muted); display: block; 
                 <span id="slide-counter">Gösterim başlatılmadı</span>
               </div>
               <div class="slideshow-footer-center">
-                <span id="slide-title"> Inspection Performance Dashboard</span>
+                <span id="slide-title">Inspection Performance Dashboard</span>
               </div>
               <div class="slideshow-footer-right">
                 <span id="slide-date">--</span>
@@ -1593,6 +1593,7 @@ label { font-size: 12px; font-weight: 500; color: var(--muted); display: block; 
     <div id="detail-modal-content"></div>
     <div class="modal-actions">
       <button class="btn btn-success" onclick="exportInspectorDetail()">📊 Excel İndir</button>
+      <button class="btn" style="background:#0078D4;color:#fff;border-color:#0078D4;" onclick="mailGonderOzet()">📧 Outlook'a Gönder</button>
       <button class="btn" onclick="closeDetailModal()">Kapat</button>
     </div>
   </div>
@@ -2337,7 +2338,7 @@ SHEET_NAME = 'Klasmanlar'      ← Sekme adı (değiştirmeye gerek yok)</div>
           <ol style="font-size:11px;color:var(--muted);line-height:2;padding-left:18px">
             <li>Apps Script editöründe: <strong>Dağıt → Yeni Dağıtım</strong></li>
             <li>Tür: <strong>Web uygulaması</strong></li>
-            <li>Açıklama: <em>Ürün Klasman Sync v1</em></li>
+            <li>Açıklama: <em>Klasman Sync v1</em></li>
             <li>Farklı çalıştır: <strong>Ben (hesabınız)</strong></li>
             <li>Erişimi olan: <strong>Herkes</strong></li>
             <li><strong>Dağıt</strong>'a tıklayın → Google hesabı izni isteyecek, onaylayın</li>
@@ -3485,7 +3486,7 @@ function showInspectorDetail(inspectorName) {
 
   // Tablo satırları render fonksiyonu
   function renderKayitlar(liste) {
-    if (!liste.length) return '<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--muted2);">Filtreye uyan kayıt bulunamadı.</td></tr>';
+    if (!liste.length) return '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--muted2);">Filtreye uyan kayıt bulunamadı.</td></tr>';
 
     // Klasman grupları
     const gruplar = {};
@@ -3505,7 +3506,7 @@ function showInspectorDetail(inspectorName) {
       const grpOrt = grpAdet > 0 && grpFiili > 0 ? Math.round(grpFiili / grpAdet) : null;
 
       html += `<tr style="background:var(--navy);color:#fff;">
-        <td colspan="9" style="padding:8px 14px;font-size:12px;font-weight:700;letter-spacing:.3px;">
+        <td colspan="11" style="padding:8px 14px;font-size:12px;font-weight:700;letter-spacing:.3px;">
           📦 ${klasmanAd}
           <span style="font-weight:400;opacity:.7;margin-left:12px;font-size:11px;">
             ${kayitlar.length} kayıt &nbsp;·&nbsp; ${grpAdet} adet toplam &nbsp;·&nbsp; ${fmtSn(grpStandart)} standart
@@ -3544,6 +3545,29 @@ function showInspectorDetail(inspectorName) {
           </td>
           <td style="padding:9px 12px;text-align:center;font-size:11px;color:var(--muted);">
             ${k.tarihGecerli && k.bitis ? fmtTarih(k.bitis) : '—'}
+          </td>
+          <td style="padding:9px 12px;text-align:center;">
+            ${(() => {
+              if (!k.kayitFiiliSure || !k.standartSure) return '<span style="font-size:11px;color:var(--muted2);">—</span>';
+              const pct = Math.round((k.standartSure / k.kayitFiiliSure) * 100);
+              const col = pct >= 100 ? '#00897B' : pct >= 85 ? '#F57F17' : '#C62828';
+              const bg  = pct >= 100 ? '#E0F2F1' : pct >= 85 ? '#FFF8E1' : '#FFEBEE';
+              const lbl = pct >= 100 ? '✓' : '↑';
+              return `<span style="display:inline-block;padding:2px 7px;border-radius:20px;background:${bg};color:${col};font-weight:700;font-size:12px;font-family:'DM Mono',monospace;">${lbl} ${pct}%</span>`;
+            })()}
+          </td>
+          <td style="padding:6px 8px;text-align:center;"
+            data-ins="${inspector.ins.replace(/"/g,'&quot;')}"
+            data-klasman="${k.klasman.replace(/"/g,'&quot;')}"
+            data-adet="${k.adet}"
+            data-kontrolsure="${k.kontrolAdetSuresi}"
+            data-istasyon="${fmtSn(k.istasyonSuresi)}"
+            data-standart="${fmtSn(k.standartSure)}"
+            data-fiili="${k.kayitFiiliSure > 0 ? fmtSn(k.kayitFiiliSure) : '—'}"
+            data-ortkontrol="${k.ortalamaKontrolSn !== null ? k.ortalamaKontrolSn + 'sn' : '—'}"
+            data-pct="${k.kayitFiiliSure && k.standartSure ? Math.round((k.standartSure/k.kayitFiiliSure)*100) : ''}"
+            data-baslangic="${k.tarihGecerli && k.baslangic ? fmtTarih(k.baslangic) : '—'}"
+            data-bitis="${k.tarihGecerli && k.bitis ? fmtTarih(k.bitis) : '—'}">
           </td>
         </tr>`;
       });
@@ -3659,6 +3683,8 @@ function showInspectorDetail(inspectorName) {
             <th style="padding:10px 12px;text-align:center;font-size:11px;">Ort. Kontrol<br><span style="opacity:.6;font-weight:400">(sn/adet)</span></th>
             <th style="padding:10px 12px;text-align:center;font-size:11px;">Başlangıç</th>
             <th style="padding:10px 12px;text-align:center;font-size:11px;">Bitiş</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;">% Uyum</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;width:36px;"></th>
           </tr>
         </thead>
         <tbody id="det-kayit-tbody">
@@ -3686,6 +3712,118 @@ function showInspectorDetail(inspectorName) {
 function closeDetailModal() {
   document.getElementById('detail-modal').classList.remove('open');
   selectedInspectorDetail = null;
+}
+
+// ────────────────────────────
+// MAIL GÖNDER (OUTLOOK)
+// ────────────────────────────
+// ────────────────────────────────────────────────────────
+// OUTLOOK PNG GÖNDER
+// Adımlar:
+//  1. Modal içeriğini html2canvas ile PNG'ye çevir
+//  2. PNG'yi clipboard'a kopyala  (Clipboard API — image/png)
+//  3. Outlook'u boş mailto ile aç
+//  4. Kullanıcıya "Outlook açıldı → Ctrl+V ile yapıştırın" uyarısı göster
+// ────────────────────────────────────────────────────────
+async function mailGonderOzet() {
+  const inspector = selectedInspectorDetail;
+  if (!inspector) { alert('Inspector verisi bulunamadı.'); return; }
+
+  // Butonu devre dışı bırak, yükleniyor göster
+  const btn = document.querySelector('.modal-actions button[onclick="mailGonderOzet()"]');
+  const origText = btn ? btn.innerHTML : '';
+  if (btn) { btn.innerHTML = '⏳ Hazırlanıyor...'; btn.disabled = true; }
+
+  try {
+    // 1. html2canvas yükle
+    await _loadHtml2Canvas();
+
+    // 2. Modal içerik elementini bul
+    const modalBox = document.querySelector('#detail-modal .modal-box');
+    if (!modalBox) throw new Error('Modal bulunamadı');
+
+    // Yakalamadan önce modal'ın tam görünür olduğundan emin ol
+    modalBox.scrollTop = 0;
+
+    // 3. html2canvas ile render et — beyaz arka plan, yüksek kalite
+    const canvas = await html2canvas(modalBox, {
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      scale: 2,           // Retina kalitesi
+      logging: false,
+      removeContainer: false,
+      scrollY: -window.scrollY,
+      windowWidth: modalBox.scrollWidth,
+      windowHeight: modalBox.scrollHeight
+    });
+
+    // 4. Canvas → Blob (PNG)
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+    // 5. Clipboard'a PNG kopyala (modern Clipboard API)
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+    } else {
+      throw new Error('Bu tarayıcı PNG clipboard kopyalamayı desteklemiyor.');
+    }
+
+    // 6. Outlook'u boş aç (subject ile)
+    const tarihStr = new Date().toLocaleDateString('tr-TR', { day:'2-digit', month:'2-digit', year:'numeric' });
+    const subject = encodeURIComponent('Inspection Performans Raporu — ' + inspector.ins + ' (' + tarihStr + ')');
+    window.location.href = 'mailto:?subject=' + subject;
+
+    // 7. Kullanıcıya talimat göster
+    setTimeout(() => {
+      _showMailTalimat();
+    }, 800);
+
+  } catch (err) {
+    console.error('PNG mail hatası:', err);
+    alert('❌ Hata: ' + err.message + '\n\nLütfen tarayıcınızın clipboard iznine izin verdiğinden emin olun.');
+  } finally {
+    if (btn) { btn.innerHTML = origText; btn.disabled = false; }
+  }
+}
+
+// Outlook talimat overlay'i
+function _showMailTalimat() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Inter',sans-serif;
+  `;
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px 36px;max-width:420px;
+      text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+      <div style="font-size:48px;margin-bottom:12px;">📋</div>
+      <div style="font-size:18px;font-weight:700;color:#0B2A52;margin-bottom:8px;">
+        PNG Panoya Kopyalandı!
+      </div>
+      <div style="font-size:14px;color:#555;line-height:1.7;margin-bottom:20px;">
+        Outlook yeni mail ekranı açılıyor.<br>
+        Mail gövdesine tıklayıp<br>
+        <strong style="color:#0078D4;font-size:16px;">Ctrl + V</strong><br>
+        ile raporu yapıştırın.
+      </div>
+      <div style="background:#f0f7ff;border:1px solid #b3d4f5;border-radius:8px;
+        padding:10px 14px;font-size:12px;color:#555;margin-bottom:20px;text-align:left;">
+        💡 Outlook açılmadıysa:<br>
+        • Masaüstü Outlook'ta <strong>Yeni E-posta</strong> açın<br>
+        • Gövdeye tıklayıp <strong>Ctrl+V</strong> yapın
+      </div>
+      <button onclick="this.closest('div[style*=position]').remove()"
+        style="background:#0078D4;color:#fff;border:none;border-radius:8px;
+        padding:10px 28px;font-size:14px;font-weight:600;cursor:pointer;">
+        Tamam
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 // ────────────────────────────
@@ -4151,9 +4289,9 @@ function excelYukle(e){
   const reader=new FileReader();
   reader.onload=function(ev){
     try{
-      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      const wb=XLSX.read(ev.target.result,{type:'binary',cellDates:true,dateNF:'yyyy-mm-dd hh:mm:ss'});
       const ws=wb.Sheets[wb.SheetNames[0]];
-      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
       
       if(!rows.length){ 
         showFileStatus('❌ Dosya boş görünüyor.','var(--red)'); 
@@ -4190,12 +4328,20 @@ function fillColSelects(){
   const mesaiEl = document.getElementById('col-mesai');
   if (mesaiEl) mesaiEl.innerHTML = '<option value="">— opsiyonel —</option>' + excelCols.map(c=>`<option value="${c}">${c}</option>`).join('');
   
+  // Türkçe karakterleri normalize ederek sütun adı eşleştirme
+  function normColTR(s) {
+    return String(s)
+      .replace(/İ/g,'i').replace(/I/g,'i').replace(/Ş/g,'s').replace(/ş/g,'s')
+      .replace(/Ğ/g,'g').replace(/ğ/g,'g').replace(/Ü/g,'u').replace(/ü/g,'u')
+      .replace(/Ö/g,'o').replace(/ö/g,'o').replace(/Ç/g,'c').replace(/ç/g,'c')
+      .replace(/ı/g,'i').toLowerCase().replace(/[^a-z0-9]/g,'');
+  }
   // Otomatik tahmin
   const klasmanCol = excelCols[0] || '';
-  const adetCol = excelCols.find(c=>c.toLowerCase().includes('bakilacakmiktar')) || excelCols[17] || '';
-  const insCol = excelCols.find(c=>c.toLowerCase().includes('inspector')) || '';
-  const baslangicCol = excelCols.find(c=>c.toLowerCase().includes('inspectionbaslamatarihi')) || excelCols[10] || '';
-  const bitisCol = excelCols.find(c=>c.toLowerCase().includes('inspectionbitistarihi')) || excelCols[11] || '';
+  const adetCol = excelCols.find(c=>normColTR(c).includes('bakilacakmiktar')) || excelCols[17] || '';
+  const insCol = excelCols.find(c=>normColTR(c).includes('inspector')) || '';
+  const baslangicCol = excelCols.find(c=>normColTR(c).includes('inspectionbaslamatarihi')) || excelCols[10] || '';
+  const bitisCol = excelCols.find(c=>normColTR(c).includes('inspectionbitistarihi') || normColTR(c).includes('inspectionbitistarihi') || (normColTR(c).includes('inspection') && normColTR(c).includes('bitis'))) || excelCols[11] || '';
   
   if(klasmanCol && document.getElementById('col-klasman')) document.getElementById('col-klasman').value = klasmanCol;
   if(adetCol && document.getElementById('col-adet')) document.getElementById('col-adet').value = adetCol;
@@ -4524,7 +4670,20 @@ function performansHesapla(){
   }
 
   // Klasman mapping hazırla
-  function normalize(str) { return String(str).toLowerCase().trim().replace(/[^\w]/g,''); }
+  // Türkçe karakterleri ASCII karşılığına çevir, sonra boşluk/özel karakterleri sil
+  function normalizeTR(str) {
+    return String(str).trim()
+      .replace(/İ/g,'i').replace(/I/g,'i')
+      .replace(/Ş/g,'s').replace(/ş/g,'s')
+      .replace(/Ğ/g,'g').replace(/ğ/g,'g')
+      .replace(/Ü/g,'u').replace(/ü/g,'u')
+      .replace(/Ö/g,'o').replace(/ö/g,'o')
+      .replace(/Ç/g,'c').replace(/ç/g,'c')
+      .replace(/ı/g,'i')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g,'');
+  }
+  function normalize(str) { return normalizeTR(str); }
   const klasmanMap = {};
   klasmanlar.forEach(k => {
     const normalKey = normalize(k.ad);
@@ -6199,7 +6358,7 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
 }
 
 // Uygulama hazır
-console.log(`✅  Inspection Performans Paneli v${APP_VERSION} hazır!`);
+console.log(`✅ Inspection Performans Paneli v${APP_VERSION} hazır!`);
 console.log(`📊 ${klasmanlar.length} klasman, ${performansData.length} inspector verisi yüklendi`);
 
 </script>
