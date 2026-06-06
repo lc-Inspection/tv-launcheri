@@ -1015,6 +1015,10 @@ label { font-size: 12px; font-weight: 500; color: var(--muted); display: block; 
     </div>
 
     <div class="sb-label">Analiz</div>
+    <div class="nav-item" onclick="showPage('klasman-analiz')">
+  <span class="nav-icon">🎯</span>
+  <span>Klasman Analizi</span>
+</div>
     <div class="nav-item" onclick="showPage('performans')">
       <span class="nav-icon">📈</span>
       <span>Performans Analizi</span>
@@ -1277,7 +1281,25 @@ label { font-size: 12px; font-weight: 500; color: var(--muted); display: block; 
         </div>
       </div>
     </div>
-
+<!-- ══════════ KLASMAN ANALİZİ ══════════ -->
+<div id="page-klasman-analiz" class="page">
+  <div class="ph">
+    <div class="ph-left">
+      <h1>🎯 Klasman Bazında Gerçekleşen Süre Analizi</h1>
+      <p>Standart ve gerçekleşen 1 adet ürün kontrol sürelerini karşılaştırın</p>
+    </div>
+    <div class="ph-buttons">
+      <button class="btn btn-primary" onclick="renderKlasmanAnaliz()">🔄 Yenile</button>
+    </div>
+  </div>
+  <div id="klasman-analiz-icerik">
+    <div class="empty">
+      <div class="empty-icon">🎯</div>
+      <h3>Veri bekleniyor</h3>
+      <p>Performans analizi yapıldıktan sonra burası otomatik dolar</p>
+    </div>
+  </div>
+</div>
     <!-- ══════════ PERFORMANS ANALİZİ ══════════ -->
     <div id="page-performans" class="page">
       <div class="ph">
@@ -2158,6 +2180,187 @@ async function pushToSheets() {
       body: JSON.stringify(payload),
       mode: 'no-cors'  // Google Apps Script CORS kısıtlaması nedeniyle
     });
+    function renderKlasmanAnaliz() {
+  const el = document.getElementById('klasman-analiz-icerik');
+  if (!el) return;
+
+  if (!performansData || !performansData.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🎯</div><h3>Veri yok</h3><p>Önce Performans Analizi sayfasından Excel yükleyin</p></div>';
+    return;
+  }
+
+  // Klasman bazında topla
+  const klasmanMap = {};
+  performansData.forEach(inspector => {
+    Object.entries(inspector.klasmanlar || {}).forEach(([klasmanAd, kd]) => {
+      if (!klasmanMap[klasmanAd]) {
+        klasmanMap[klasmanAd] = {
+          ad: klasmanAd,
+          toplamAdet: 0,
+          toplamFiiliSure: 0,
+          toplamStandartSure: 0,
+          inspectorSayisi: 0,
+          kayitSayisi: 0,
+          // Klasman tanımından standart al
+          standartKontrolSure: null,
+          istasyonSure: null
+        };
+      }
+      klasmanMap[klasmanAd].toplamAdet       += kd.adet || 0;
+      klasmanMap[klasmanAd].toplamFiiliSure  += kd.kayitFiiliSure || 0;
+      klasmanMap[klasmanAd].toplamStandartSure += kd.standartSure || 0;
+      klasmanMap[klasmanAd].inspectorSayisi  += 1;
+    });
+  });
+
+  // Klasman tanımlarından standart süreleri ekle
+  klasmanlar.forEach(k => {
+    const key = k.ad;
+    if (klasmanMap[key]) {
+      klasmanMap[key].standartKontrolSure = parseFloat(k.urunKontrolSuresi) || 0;
+      klasmanMap[key].istasyonSure = k.istasyonlar.reduce((s, i) => s + (parseFloat(i.sure) || 0), 0);
+    }
+  });
+
+  const liste = Object.values(klasmanMap)
+    .filter(k => k.toplamAdet > 0)
+    .sort((a, b) => b.toplamAdet - a.toplamAdet);
+
+  if (!liste.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><h3>Veri bulunamadı</h3></div>';
+    return;
+  }
+
+  const kartlar = liste.map(k => {
+    const standart = k.standartKontrolSure;
+    const istasyon = k.istasyonSure;
+    const gerceklesenOrt = k.toplamAdet > 0 && k.toplamFiiliSure > 0
+      ? (k.toplamFiiliSure / k.toplamAdet)
+      : null;
+
+    const fark = (gerceklesenOrt !== null && standart !== null)
+      ? gerceklesenOrt - standart
+      : null;
+
+    const farkRenk = fark === null ? 'var(--muted)'
+      : fark <= 0 ? '#00897B'
+      : fark <= standart * 0.2 ? '#F57F17'
+      : '#C62828';
+
+    const farkIkon = fark === null ? '—'
+      : fark <= 0 ? '▼ Hedef Altında ✓'
+      : '▲ Hedef Üstünde';
+
+    const yuzdeFark = (fark !== null && standart > 0)
+      ? Math.round((fark / standart) * 100)
+      : null;
+
+    const barGenislik = gerceklesenOrt !== null && standart > 0
+      ? Math.min(200, Math.round((gerceklesenOrt / standart) * 100))
+      : 0;
+
+    const barRenk = fark === null ? 'var(--muted2)'
+      : fark <= 0 ? '#00897B'
+      : fark <= standart * 0.2 ? '#F57F17'
+      : '#C62828';
+
+    return `
+    <div style="background:#fff;border:1.5px solid var(--border2);border-radius:14px;padding:20px;box-shadow:var(--shadow);transition:all .15s;position:relative;overflow:hidden;">
+      
+      <!-- Üst renk çizgisi -->
+      <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,${barRenk},${barRenk}88);border-radius:14px 14px 0 0;"></div>
+
+      <!-- Başlık -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--navy);">${k.ad}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+            ${k.toplamAdet.toLocaleString('tr-TR')} adet · ${k.inspectorSayisi} inspector
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:22px;font-weight:800;color:${barRenk};font-family:'DM Mono',monospace;line-height:1;">
+            ${gerceklesenOrt !== null ? gerceklesenOrt.toFixed(2) + 'sn' : '—'}
+          </div>
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:2px;">Gerçekleşen/Adet</div>
+        </div>
+      </div>
+
+      <!-- Karşılaştırma Satırları -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        
+        <div style="background:var(--lblue3);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📐 Standart</div>
+          <div style="font-size:18px;font-weight:700;color:var(--navy);font-family:'DM Mono',monospace;">
+            ${standart !== null ? standart.toFixed(2) + 'sn' : '—'}
+          </div>
+          <div style="font-size:10px;color:var(--muted2);margin-top:3px;">1 adet ürün kontrol</div>
+          ${istasyon !== null ? `<div style="font-size:10px;color:var(--muted2);margin-top:1px;">+ ${istasyon.toFixed(2)}sn istasyon</div>` : ''}
+        </div>
+
+        <div style="background:${fark !== null && fark <= 0 ? 'var(--lgreen)' : fark !== null && fark <= (standart||0)*0.2 ? 'var(--lamber)' : 'var(--lred)'};border:1px solid ${fark !== null && fark <= 0 ? '#B2DFDB' : fark !== null && fark <= (standart||0)*0.2 ? '#FFE082' : '#FFCDD2'};border-radius:10px;padding:12px 14px;">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">⏱ Gerçekleşen</div>
+          <div style="font-size:18px;font-weight:700;color:${barRenk};font-family:'DM Mono',monospace;">
+            ${gerceklesenOrt !== null ? gerceklesenOrt.toFixed(2) + 'sn' : '—'}
+          </div>
+          <div style="font-size:10px;color:${barRenk};margin-top:3px;font-weight:600;">
+            ${fark !== null ? (fark > 0 ? '+' : '') + fark.toFixed(2) + 'sn fark' : '—'}
+            ${yuzdeFark !== null ? ` (${fark > 0 ? '+' : ''}${yuzdeFark}%)` : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px;">
+          <span>Gerçekleşen / Standart oranı</span>
+          <span style="font-weight:600;color:${barRenk}">${barGenislik}%</span>
+        </div>
+        <div style="height:8px;background:var(--border2);border-radius:4px;overflow:hidden;position:relative;">
+          <!-- Standart çizgisi -->
+          <div style="position:absolute;left:${Math.min(100, Math.round(100/Math.max(barGenislik,100)*100))}%;top:0;bottom:0;width:2px;background:var(--navy);opacity:.3;z-index:2;"></div>
+          <div style="width:${Math.min(100,barGenislik)}%;height:100%;background:${barRenk};border-radius:4px;transition:width .6s ease;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted2);margin-top:2px;">
+          <span>0</span>
+          <span style="color:var(--navy);font-weight:600;">Standart = 100%</span>
+        </div>
+      </div>
+
+      <!-- Alt Badge -->
+      <div style="text-align:center;padding:6px 12px;border-radius:8px;background:${fark !== null && fark <= 0 ? 'var(--lgreen)' : fark !== null ? 'var(--lred)' : 'var(--offwhite)'};border:1px solid ${fark !== null && fark <= 0 ? '#B2DFDB' : fark !== null ? '#FFCDD2' : 'var(--border2)'};">
+        <span style="font-size:11px;font-weight:700;color:${barRenk};">${farkIkon}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <!-- Özet Bar -->
+    <div style="background:linear-gradient(135deg,var(--navy) 0%,var(--blue) 100%);border-radius:12px;padding:16px 22px;margin-bottom:20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+      <div style="font-size:28px;">🎯</div>
+      <div style="flex:1;">
+        <div style="font-size:15px;font-weight:700;color:#fff;">Klasman Bazında Gerçekleşen Süre Analizi</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:3px;">${liste.length} klasman · ${liste.reduce((s,k)=>s+k.toplamAdet,0).toLocaleString('tr-TR')} toplam adet</div>
+      </div>
+      ${[
+        ['✅', 'Hedefte', liste.filter(k => { const g = k.toplamAdet>0&&k.toplamFiiliSure>0?k.toplamFiiliSure/k.toplamAdet:null; return g!==null&&k.standartKontrolSure!==null&&g<=k.standartKontrolSure; }).length, '#4CAF50'],
+        ['⚠️', 'Yakın', liste.filter(k => { const g = k.toplamAdet>0&&k.toplamFiiliSure>0?k.toplamFiiliSure/k.toplamAdet:null; const s=k.standartKontrolSure; return g!==null&&s!==null&&g>s&&g<=s*1.2; }).length, '#FFB74D'],
+        ['🔴', 'Yüksek', liste.filter(k => { const g = k.toplamAdet>0&&k.toplamFiiliSure>0?k.toplamFiiliSure/k.toplamAdet:null; const s=k.standartKontrolSure; return g!==null&&s!==null&&g>s*1.2; }).length, '#EF9A9A'],
+        ['➖', 'Veri Yok', liste.filter(k => !k.toplamFiiliSure||!k.standartKontrolSure).length, 'rgba(255,255,255,.5)']
+      ].map(([ic,lb,cnt,col])=>`
+        <div style="text-align:center;background:rgba(255,255,255,.1);border-radius:10px;padding:10px 16px;min-width:80px;">
+          <div style="font-size:16px;">${ic}</div>
+          <div style="font-size:20px;font-weight:800;color:${col};font-family:'DM Mono',monospace;line-height:1.2;">${cnt}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.5px;">${lb}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- Kartlar -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
+      ${kartlar}
+    </div>
+  `;
+}
     showSuccessMessage('✅ ' + klasmanlar.length + ' klasman Google Sheets\'e gönderildi!');
   } catch(err) {
     alert('❌ Gönderme hatası: ' + err.message);
