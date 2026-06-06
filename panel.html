@@ -2184,13 +2184,7 @@ async function pushToSheets() {
       body: JSON.stringify(payload),
       mode: 'no-cors'
     });
-    showSuccessMessage('✅ ' + klasmanlar.length + ' klasman Google Sheets\'e gönderildi!');
-  } catch(err) {
-    alert('❌ Gönderme hatası: ' + err.message);
-  } finally {
-    if (btn) { btn.textContent = origText; btn.disabled = false; }
-  }
-}
+ 
 
 function renderKlasmanAnaliz() {
   const el = document.getElementById('klasman-analiz-icerik');
