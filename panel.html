@@ -2233,7 +2233,9 @@ function renderKlasmanAnaliz() {
   }
 
   const kartlar = liste.map(k => {
-    const standart       = k.standartKontrolSure || 0;
+    const standart = k.toplamAdet > 0 && k.toplamStandartSure > 0
+  ? k.toplamStandartSure / k.toplamAdet
+  : (k.standartKontrolSure || 0);
     const istasyon       = k.istasyonSure || 0;
     const gerceklesenOrt = k.toplamAdet > 0 && k.toplamFiiliSure > 0
       ? k.toplamFiiliSure / k.toplamAdet : null;
@@ -2462,7 +2464,9 @@ function _renderKlAnalizUI(el) {
   const stdYok  = orijinal.filter(k => !k.standartKontrolSure||k.standartKontrolSure===0).length;
 
   const kartlar = sayfaListe.map(k => {
-    const standart       = k.standartKontrolSure || 0;
+    const standart = k.toplamAdet > 0 && k.toplamStandartSure > 0
+  ? k.toplamStandartSure / k.toplamAdet
+  : (k.standartKontrolSure || 0);
     const istasyon       = k.istasyonSure || 0;
     const gerceklesenOrt = k.toplamAdet > 0 && k.toplamFiiliSure > 0 ? k.toplamFiiliSure / k.toplamAdet : null;
     const fark           = gerceklesenOrt !== null && standart > 0 ? gerceklesenOrt - standart : null;
