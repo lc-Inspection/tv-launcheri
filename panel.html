@@ -1233,13 +1233,6 @@ label { font-size: 12px; font-weight: 500; color: var(--muted); display: block; 
             <button onclick="changePwPrompt()" style="margin-left:10px;padding:3px 10px;background:var(--amber);color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">✏️ Şifreyi Değiştir</button>
             <span id="pw-sheets-sync-status" style="margin-left:10px;font-size:10px;color:var(--muted)">📊 Sheets Config'e otomatik senkronize edilir</span>
           </div>
-          <div style="margin-top:8px;padding:10px 14px;background:#FFF3E0;border-radius:8px;border:1px solid #FFB74D;font-size:11px;color:var(--navy)">
-            <strong>🔑 Klasman Yönetimi Şifresi:</strong>
-            <span style="color:var(--muted)"> Bu sayfaya özel erişim şifresi: </span>
-            <code id="klasman-pw-display" style="background:var(--border2);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace">****</code>
-            <button onclick="changeKlasmanPwPrompt()" style="margin-left:10px;padding:3px 10px;background:#E65100;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">✏️ Klasman Şifresini Değiştir</button>
-            <span style="margin-left:10px;font-size:10px;color:var(--muted)">📊 Sheets Config'e otomatik senkronize edilir</span>
-          </div>
         </div>
       </div>
 
@@ -1720,8 +1713,7 @@ const APP_CONFIG_KEY = 'lc_inspection_config';
 const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwWsl1LZQ76GPT51KCjYH8a86RC2Il9x617YvsR4CExoZpCp-fwFGTs0Q8gtHk1HAmnIg/exec';
 const DEFAULT_API_TOKEN  = 'lcw-secret-2024';
 let appConfig = {
-  password: '',          // Panel giriş şifresi — Sheets Config'ten yüklenir, kodda saklanmaz
-  klasmanPassword: '',   // Klasman Yönetimi şifresi — Sheets Config'ten yüklenir, kodda saklanmaz
+  password: '',  // Şifre localStorage veya Sheets'ten yüklenir — kaynak kodda saklanmaz
   sheetsWebAppUrl: DEFAULT_SHEETS_URL,
   sheetsViewUrl: '',
   sheetsApiToken: DEFAULT_API_TOKEN
@@ -1743,7 +1735,7 @@ async function pushConfigToSheets() {
       body: JSON.stringify({
         action: 'setConfig',
         token: token,
-        config: { password: appConfig.password, klasmanPassword: appConfig.klasmanPassword }
+        config: { password: appConfig.password }
       }),
       mode: 'no-cors'
     });
@@ -1808,11 +1800,10 @@ async function pullConfigFromSheets() {
   if (!url || !token) return false;
   try {
     const data = await jsonpFetch(url, { action: 'getConfig', token });
-    if (data.status === 'ok' && data.config) {
-      if (data.config.password)        appConfig.password        = data.config.password;
-      if (data.config.klasmanPassword) appConfig.klasmanPassword = data.config.klasmanPassword;
+    if (data.status === 'ok' && data.config && data.config.password) {
+      appConfig.password = data.config.password;
       localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(appConfig));
-      console.log('✅ Config Sheets\'ten çekildi');
+      console.log('✅ Config (şifre) Sheets\'ten çekildi');
       return true;
     }
   } catch(e) { console.warn('Config pull hatası:', e.message); }
@@ -1972,9 +1963,7 @@ function updateSheetsViewLink() {
 // sessionStorage ile çalışır: sekme açık olduğu sürece bir kez şifre yeter.
 // Sekme kapatılınca sıfırlanır, yeni açılışta tekrar sorar.
 const SESSION_KEY = 'lc_session_unlocked';
-const SESSION_KEY_KLASMAN = 'lc_klasman_unlocked';
 let klasmanUnlocked = sessionStorage.getItem(SESSION_KEY) === '1';
-let klasmanPageUnlocked = sessionStorage.getItem(SESSION_KEY_KLASMAN) === '1';
 let pendingNavEl = null;
 let _pwMandatory = false;
 
@@ -1993,14 +1982,7 @@ function initPasswordGate() {
 
 function requirePassword(navEl) {
   if (klasmanUnlocked) {
-    // Panel şifresi geçti — şimdi Klasman Yönetimi şifresini kontrol et
-    if (klasmanPageUnlocked) {
-      showPage('klasmanlar', navEl);
-      return;
-    }
-    // Klasman sayfasına özel şifre sor
-    pendingNavEl = navEl;
-    _openKlasmanModal();
+    showPage('klasmanlar', navEl);
     return;
   }
   pendingNavEl = navEl;
@@ -2038,90 +2020,6 @@ function closePwModal() {
   if (_pwMandatory) return; // Zorunlu modda kapatılamaz
   document.getElementById('pw-overlay').style.display = 'none';
   pendingNavEl = null;
-}
-
-// ── KLasman Sayfası Özel Şifre Modalı ──
-function _openKlasmanModal() {
-  const overlay = document.getElementById('klasman-pw-overlay');
-  if (!overlay) { _buildKlasmanModal(); return; }
-  document.getElementById('kpw-input').value = '';
-  document.getElementById('kpw-err').textContent = '';
-  overlay.style.display = 'flex';
-  setTimeout(() => document.getElementById('kpw-input').focus(), 80);
-}
-
-function _buildKlasmanModal() {
-  const div = document.createElement('div');
-  div.id = 'klasman-pw-overlay';
-  div.style.cssText = 'position:fixed;inset:0;background:rgba(11,31,58,.6);z-index:950;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
-  div.innerHTML = `
-    <div style="background:#fff;border-radius:18px;padding:36px 32px;width:90vw;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(11,31,58,.35);border:1px solid var(--border2);animation:popIn .2s ease;">
-      <div style="font-size:36px;margin-bottom:12px;">🔑</div>
-      <div style="font-size:18px;font-weight:700;color:var(--navy);margin-bottom:6px;">Klasman Yönetimi</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:22px;">Bu bölüme erişmek için yönetici şifresi gereklidir</div>
-      <input type="password" id="kpw-input" placeholder="••••••••" 
-             style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:'DM Sans',sans-serif;margin-bottom:10px;text-align:center;letter-spacing:3px;"
-             onkeydown="if(event.key==='Enter')checkKlasmanPassword()">
-      <div id="kpw-err" style="font-size:12px;color:var(--red);margin-bottom:12px;min-height:18px;"></div>
-      <div style="display:flex;gap:10px;">
-        <button onclick="closeKlasmanModal()" 
-                style="flex:1;padding:10px;border:1px solid var(--border);background:#fff;border-radius:9px;font-size:13px;font-weight:500;cursor:pointer;color:var(--muted);">
-          İptal
-        </button>
-        <button onclick="checkKlasmanPassword()" 
-                style="flex:2;padding:10px;background:var(--blue2);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;">
-          🔓 Giriş Yap
-        </button>
-      </div>
-    </div>`;
-  document.body.appendChild(div);
-  setTimeout(() => document.getElementById('kpw-input').focus(), 80);
-}
-
-function closeKlasmanModal() {
-  const overlay = document.getElementById('klasman-pw-overlay');
-  if (overlay) overlay.style.display = 'none';
-  pendingNavEl = null;
-}
-
-function checkKlasmanPassword() {
-  const val   = document.getElementById('kpw-input').value.trim();
-  const errEl = document.getElementById('kpw-err');
-  if (!val) { errEl.textContent = '❌ Şifre boş olamaz'; return; }
-
-  const correctPw = appConfig.klasmanPassword;
-  if (!correctPw) {
-    document.getElementById('kpw-err').textContent = '⚠️ Şifre henüz Config\'ten yüklenmedi. İnternet bağlantınızı kontrol edin.';
-    return;
-  }
-  if (val === correctPw) {
-    klasmanPageUnlocked = true;
-    sessionStorage.setItem(SESSION_KEY_KLASMAN, '1');
-    const overlay = document.getElementById('klasman-pw-overlay');
-    if (overlay) overlay.style.display = 'none';
-    if (pendingNavEl) showPage('klasmanlar', pendingNavEl);
-    pendingNavEl = null;
-  } else {
-    errEl.textContent = '❌ Yanlış şifre, tekrar deneyin';
-    document.getElementById('kpw-input').value = '';
-    document.getElementById('kpw-input').focus();
-  }
-}
-
-function changeKlasmanPwPrompt() {
-  const current = prompt('Mevcut Klasman Yönetimi şifresini girin:');
-  if (!appConfig.klasmanPassword || current !== appConfig.klasmanPassword) { alert('Yanlış şifre!'); return; }
-  const newPw = prompt('Yeni şifreyi girin:');
-  if (!newPw || newPw.length < 4) { alert('Şifre en az 4 karakter olmalı!'); return; }
-  const conf = prompt('Yeni şifreyi tekrar girin:');
-  if (newPw !== conf) { alert('Şifreler eşleşmiyor!'); return; }
-  appConfig.klasmanPassword = newPw;
-  localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(appConfig));
-  pushConfigToSheets().then(() => {
-    alert('✅ Klasman şifresi değiştirildi ve Sheets\'e senkronize edildi!');
-  }).catch(() => {
-    alert('✅ Klasman şifresi değiştirildi! (Sheets senkronizasyonu başarısız)');
-  });
 }
 
 async function checkPassword() {
@@ -2174,7 +2072,6 @@ async function checkPassword() {
         const sheetsPassword = data.config.password;
         // Cache'e yaz
         appConfig.password = sheetsPassword;
-        if (data.config.klasmanPassword) appConfig.klasmanPassword = data.config.klasmanPassword;
         localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(appConfig));
         if (val === sheetsPassword) { _unlock(); return; }
         else { _fail('❌ Yanlış şifre, tekrar deneyin'); document.getElementById('pw-input').value=''; document.getElementById('pw-input').focus(); return; }
