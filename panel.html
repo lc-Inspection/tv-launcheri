@@ -1864,9 +1864,9 @@ let perfData = null;
   }
   try {
     if (perfData && perfData.status === 'ok' && Array.isArray(perfData.performansData) && perfData.performansData.length > 0) {
-      performansData = restorePerformansDateObjects(perfData.performansData);
+      performansData = fixVerimlilikPerf(restorePerformansDateObjects(perfData.performansData));
       console.log('✅ Performans verisi yüklendi:', performansData.length, 'inspector');
-      // verimlilikPerf Sheets'te doğru hesaplanmış — doğrudan kullan
+      // verimlilikPerf hedefVerimlilik'e göre yeniden hesaplandı
     }
   } catch(e) {
     console.warn('Performans otomatik çekme hatası:', e.message);
@@ -2779,7 +2779,7 @@ async function pullFromSheets() {
       try {
         const perfData = await gsFetch('getPerformansRaw');
         if (perfData.status === 'ok' && Array.isArray(perfData.performansData) && perfData.performansData.length > 0) {
-          performansData = restorePerformansDateObjects(perfData.performansData);
+          performansData = fixVerimlilikPerf(restorePerformansDateObjects(perfData.performansData));
           saveData();
           console.log('✅ Performans verisi Sheets\'ten çekildi:', performansData.length, 'inspector');
         }
@@ -2966,8 +2966,8 @@ async function pullPerformansFromSheets(silent = false) {
     const data = await jsonpFetch(url, { action: 'getPerformansRaw', token });
     console.log('📥 getPerformansRaw yanıtı:', JSON.stringify(data).substring(0, 300));
     if (data.status === 'ok' && Array.isArray(data.performansData) && data.performansData.length > 0) {
-      performansData = restorePerformansDateObjects(data.performansData);
-      // verimlilikPerf Sheets'te doğru hesaplanmış — doğrudan kullan
+      performansData = fixVerimlilikPerf(restorePerformansDateObjects(data.performansData));
+      // verimlilikPerf hedefVerimlilik'e göre yeniden hesaplandı
       saveData();
       renderDashboard();
       updateSidebar();
@@ -3127,8 +3127,8 @@ async function pushPerformansManual(ev) {
     klasmanlar: klasmanlarTemiz,
     toplamMesaistiSaniye: inspector.toplamMesaistiSaniye || 0,
     gunlukOvertimeDetay: inspector.gunlukOvertimeDetay || {},
-    hedefVerimlilik: inspector.hedefVerimlilik || (parseFloat(document.getElementById('inp-verimlilik')?.value) || 100),
-    orneklemeMod: document.querySelector('input[name="ornekleme-mod"]:checked')?.value || 'kapali'
+    hedefVerimlilik: inspector.hedefVerimlilik || 100,
+    orneklemeMod: inspector.orneklemeMod || document.querySelector('input[name="ornekleme-mod"]:checked')?.value || 'kapali'
   };
 });
     await fetch(url, {
@@ -3177,7 +3177,7 @@ async function pullPerformansFromSheetsManual(ev) {
         return;
       }
 
-      performansData = restorePerformansDateObjects(data.performansData);
+      performansData = fixVerimlilikPerf(restorePerformansDateObjects(data.performansData));
       saveData();
       renderDashboard();
       updateSidebar();
@@ -3397,6 +3397,22 @@ function restorePerformansDateObjects(liste) {
   return liste;
 }
 
+// ─────────────────────────────────────────────
+// PULL SONRASI verimlilikPerf DÜZELT
+// Sheets'te yanlış push yapılmışsa (farklı bilgisayar, farklı inp-verimlilik)
+// genelHizPerf ve hedefVerimlilik'ten yeniden hesapla.
+// ─────────────────────────────────────────────
+function fixVerimlilikPerf(liste) {
+  if (!Array.isArray(liste)) return liste;
+  liste.forEach(inspector => {
+    const hedef = inspector.hedefVerimlilik || 100;
+    if (inspector.genelHizPerf !== null && inspector.genelHizPerf !== undefined) {
+      inspector.verimlilikPerf = Math.round(inspector.genelHizPerf * (100 / hedef));
+    }
+  });
+  return liste;
+}
+
 function loadData() {
   try {
     const saved = localStorage.getItem('lc_inspection_data');
@@ -3404,7 +3420,7 @@ function loadData() {
       const data = JSON.parse(saved);
       klasmanlar = data.klasmanlar || [];
       nextId = data.nextId || 1;
-      performansData = restorePerformansDateObjects(data.performansData || []);
+      performansData = fixVerimlilikPerf(restorePerformansDateObjects(data.performansData || []));
       // Verimlilik hedefini geri yükle
       if (data.verimlilikHedef && document.getElementById('inp-verimlilik')) {
         document.getElementById('inp-verimlilik').value = data.verimlilikHedef;
@@ -5022,8 +5038,8 @@ async function autoFetchPerfIfNeeded() {
   try {
     const data = await jsonpFetch(url, { action: 'getPerformansRaw', token });
     if (data.status === 'ok' && Array.isArray(data.performansData) && data.performansData.length > 0) {
-      performansData = restorePerformansDateObjects(data.performansData);
-      // verimlilikPerf Sheets'te doğru hesaplanmış — doğrudan kullan
+      performansData = fixVerimlilikPerf(restorePerformansDateObjects(data.performansData));
+      // verimlilikPerf hedefVerimlilik'e göre yeniden hesaplandı
       saveData();
       renderPerfTabloFromData();
       renderDashboard();
