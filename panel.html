@@ -4,14 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inspection Performans Paneli</title>
-<!-- PWA -->
 <meta name="theme-color" content="#0B1F3A">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="IC Panel">
-<link rel="manifest" id="pwa-manifest-link">
-<link rel="apple-touch-icon" id="pwa-apple-icon">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -7953,159 +7952,97 @@ function exportInspectorDetailFromOverlay() {
 }
 </script>
 
-<!-- ═══════════════════════════════════════════════════════
-     PWA — Inline Manifest + Service Worker + Install Banner
-     ═══════════════════════════════════════════════════════ -->
+<!-- ══════════════ PWA INSTALL BANNER ══════════════ -->
 <style>
-#pwa-install-banner {
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(120px);
+#pwa-banner {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(140px);
   background: #0B1F3A; color: #fff;
-  border: 1px solid rgba(66,165,245,.3);
-  border-radius: 14px; padding: 14px 20px;
-  display: flex; align-items: center; gap: 14px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.35);
-  z-index: 9999; min-width: 290px; max-width: 360px;
-  transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+  border: 1px solid rgba(66,165,245,.35); border-radius: 16px;
+  padding: 14px 18px; display: flex; align-items: center; gap: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.4); z-index: 9999;
+  min-width: 300px; max-width: 380px;
+  transition: transform .45s cubic-bezier(.34,1.56,.64,1);
   font-family: 'DM Sans', sans-serif;
 }
-#pwa-install-banner.show { transform: translateX(-50%) translateY(0); }
-#pwa-install-banner .pwa-icon {
-  width: 42px; height: 42px; border-radius: 10px;
-  background: #1976D2; display: flex; align-items: center;
-  justify-content: center; font-size: 20px; flex-shrink: 0;
+#pwa-banner.visible { transform: translateX(-50%) translateY(0); }
+#pwa-banner .pwa-ico {
+  width: 44px; height: 44px; border-radius: 12px; background: #1976D2;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
 }
-#pwa-install-banner .pwa-text { flex: 1; }
-#pwa-install-banner .pwa-text strong { display: block; font-size: 13px; font-weight: 600; }
-#pwa-install-banner .pwa-text span { font-size: 11px; color: rgba(255,255,255,.6); }
-#pwa-install-banner .pwa-actions { display: flex; gap: 8px; }
-#pwa-install-banner .pwa-btn-install {
-  background: #1976D2; color: #fff; border: none; border-radius: 8px;
-  padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+#pwa-banner .pwa-txt strong { display: block; font-size: 13px; font-weight: 600; }
+#pwa-banner .pwa-txt span   { font-size: 11px; color: rgba(255,255,255,.55); }
+.pwa-btns { display: flex; gap: 8px; margin-left: auto; }
+.pwa-ok {
+  background: #1976D2; color: #fff; border: none; border-radius: 9px;
+  padding: 8px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
   font-family: 'DM Sans', sans-serif; white-space: nowrap;
 }
-#pwa-install-banner .pwa-btn-install:hover { background: #1565C0; }
-#pwa-install-banner .pwa-btn-dismiss {
-  background: rgba(255,255,255,.08); color: rgba(255,255,255,.6);
-  border: 1px solid rgba(255,255,255,.12); border-radius: 8px;
-  padding: 7px 10px; font-size: 12px; cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
+.pwa-ok:hover { background: #1565C0; }
+.pwa-no {
+  background: rgba(255,255,255,.08); color: rgba(255,255,255,.5);
+  border: 1px solid rgba(255,255,255,.12); border-radius: 9px;
+  padding: 8px 10px; font-size: 13px; cursor: pointer;
 }
-#pwa-install-banner .pwa-btn-dismiss:hover { background: rgba(255,255,255,.14); }
+.pwa-no:hover { background: rgba(255,255,255,.15); }
 </style>
 
-<div id="pwa-install-banner">
-  <div class="pwa-icon">📋</div>
-  <div class="pwa-text">
+<div id="pwa-banner">
+  <div class="pwa-ico">📋</div>
+  <div class="pwa-txt">
     <strong>Uygulamayı Yükle</strong>
     <span>Ana ekrana ekle, uygulama gibi kullan</span>
   </div>
-  <div class="pwa-actions">
-    <button class="pwa-btn-install" id="pwa-btn-install">Yükle</button>
-    <button class="pwa-btn-dismiss" id="pwa-btn-dismiss">✕</button>
+  <div class="pwa-btns">
+    <button class="pwa-ok" id="pwa-install-btn">Yükle</button>
+    <button class="pwa-no" id="pwa-dismiss-btn">✕</button>
   </div>
 </div>
 
 <script>
-(function() {
-  // ── 1. Inline SVG icon as data URL ──
-  var SVG_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' rx='20' fill='%231976D2'/%3E%3Crect x='24' y='22' width='48' height='6' rx='3' fill='white'/%3E%3Crect x='24' y='36' width='36' height='5' rx='2.5' fill='rgba(255,255,255,0.7)'/%3E%3Crect x='24' y='48' width='40' height='5' rx='2.5' fill='rgba(255,255,255,0.7)'/%3E%3Crect x='24' y='60' width='28' height='5' rx='2.5' fill='rgba(255,255,255,0.7)'/%3E%3Ccircle cx='70' cy='68' r='14' fill='%2300897B'/%3E%3Cpath d='M63 68l5 5 10-9' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E";
+(function(){
+  var banner = document.getElementById('pwa-banner');
+  var btnOk  = document.getElementById('pwa-install-btn');
+  var btnNo  = document.getElementById('pwa-dismiss-btn');
+  var deferred = null;
 
-  // ── 2. Inject manifest as blob ──
-  var manifest = {
-    name: "Inspection Performans Paneli",
-    short_name: "IC Panel",
-    description: "LC Waikiki Inspection Kalite Kontrol Performans Takip Paneli",
-    start_url: "./",
-    display: "standalone",
-    background_color: "#0B1F3A",
-    theme_color: "#0B1F3A",
-    orientation: "any",
-    icons: [
-      { src: SVG_ICON, sizes: "96x96",  type: "image/svg+xml", purpose: "any maskable" },
-      { src: SVG_ICON, sizes: "192x192", type: "image/svg+xml", purpose: "any maskable" },
-      { src: SVG_ICON, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }
-    ]
-  };
-  var manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
-  var manifestURL  = URL.createObjectURL(manifestBlob);
-  document.getElementById('pwa-manifest-link').href = manifestURL;
-  document.getElementById('pwa-apple-icon').href    = SVG_ICON;
+  function hide(){ banner.classList.remove('visible'); try{sessionStorage.setItem('pwa_hidden','1');}catch(e){} }
 
-  // ── 3. Service Worker (inline as blob) ──
-  var SW_CODE = [
-    "const CACHE = 'ic-panel-v1';",
-    "const ASSETS = [self.registration.scope];",
-    "self.addEventListener('install', e => {",
-    "  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));",
-    "});",
-    "self.addEventListener('activate', e => {",
-    "  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));",
-    "});",
-    "self.addEventListener('fetch', e => {",
-    "  if (e.request.method !== 'GET') return;",
-    "  e.respondWith(fetch(e.request).then(r => {",
-    "    var rc = r.clone();",
-    "    caches.open(CACHE).then(c => c.put(e.request, rc));",
-    "    return r;",
-    "  }).catch(() => caches.match(e.request)));",
-    "});"
-  ].join('\n');
-
+  // ── Service Worker kaydı (sw.js ayrı dosya) ──
   if ('serviceWorker' in navigator) {
-    var swBlob = new Blob([SW_CODE], {type: 'application/javascript'});
-    var swURL  = URL.createObjectURL(swBlob);
-    navigator.serviceWorker.register(swURL, {scope: './'})
-      .catch(function(e){ console.warn('SW kayıt:', e); });
+    navigator.serviceWorker.register(
+      'https://lc-inspection.github.io/inspection-panel/sw.js',
+      { scope: '/inspection-panel/' }
+    ).then(function(r){ console.log('SW OK', r.scope); })
+     .catch(function(e){ console.warn('SW err', e); });
   }
 
-  // ── 4. Install banner logic ──
-  var deferredPrompt = null;
-  var banner  = document.getElementById('pwa-install-banner');
-  var btnInst = document.getElementById('pwa-btn-install');
-  var btnDis  = document.getElementById('pwa-btn-dismiss');
-
-  function hideBanner() {
-    banner.classList.remove('show');
-    try { sessionStorage.setItem('pwa-dismissed','1'); } catch(e){}
-  }
-
-  window.addEventListener('beforeinstallprompt', function(e) {
+  // ── Install prompt ──
+  window.addEventListener('beforeinstallprompt', function(e){
     e.preventDefault();
-    deferredPrompt = e;
-    // Daha önce kapat tıklandıysa gösterme
-    try { if (sessionStorage.getItem('pwa-dismissed')) return; } catch(e){}
-    setTimeout(function(){ banner.classList.add('show'); }, 1500);
+    deferred = e;
+    try{ if(sessionStorage.getItem('pwa_hidden')) return; }catch(ex){}
+    setTimeout(function(){ banner.classList.add('visible'); }, 1200);
   });
 
-  btnInst.addEventListener('click', function() {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(function(c){
-      if (c.outcome === 'accepted') hideBanner();
-      deferredPrompt = null;
-    });
+  btnOk.addEventListener('click', function(){
+    if(!deferred){ alert('Tarayıcınız yükleme diyaloğunu henüz tetiklemedi. Adres çubuğunun sağındaki ⊕ ikonuna tıklayın.'); return; }
+    deferred.prompt();
+    deferred.userChoice.then(function(c){ if(c.outcome==='accepted') hide(); deferred=null; });
   });
+  btnNo.addEventListener('click', hide);
+  window.addEventListener('appinstalled', function(){ hide(); deferred=null; });
 
-  btnDis.addEventListener('click', hideBanner);
-
-  window.addEventListener('appinstalled', function() {
-    hideBanner();
-    deferredPrompt = null;
-  });
-
-  // iOS Safari için ayrı yönlendirme
+  // iOS Safari
   var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
-  var isInStandalone = window.navigator.standalone === true;
-  if (isIOS && !isInStandalone) {
-    try { if (sessionStorage.getItem('pwa-dismissed')) return; } catch(e){}
-    // iOS'ta beforeinstallprompt tetiklenmez; metni iOS'a özel yap
+  if(isIOS && !window.navigator.standalone){
+    try{ if(sessionStorage.getItem('pwa_hidden')) return; }catch(ex){}
     setTimeout(function(){
-      banner.querySelector('.pwa-text span').textContent = "Safari'de Paylaş → Ana Ekrana Ekle";
-      banner.querySelector('.pwa-btn-install').style.display = 'none';
-      banner.classList.add('show');
-    }, 1800);
+      banner.querySelector('.pwa-txt span').textContent = "Safari → Paylaş → Ana Ekrana Ekle";
+      btnOk.style.display='none';
+      banner.classList.add('visible');
+    }, 1500);
   }
-
 })();
 </script>
 
