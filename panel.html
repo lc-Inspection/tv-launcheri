@@ -1717,7 +1717,7 @@ let animationEffect = 'slide'; // slide, fade, zoom, flip
 // APP CONFIG (Tüm Ayarlar)
 // ────────────────────────────
 const APP_CONFIG_KEY = 'lc_inspection_config';
-const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz9nrSJRtAWMV7d1il2r-g0h8N113cdTAL9UruZxvVbiaf6S4SBQQx7A2qyHnZInxqltg/exec';
+const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzy_ijNGBxcLGWF9-Mv_lMpqQgfip6qH27dvD9C_Zzg01IlodvJJn3yAwbdziZbynfKZg/exec';
 const DEFAULT_API_TOKEN  = 'lcw-secret-2024';
 let appConfig = {
   password: '',          // Panel giriş şifresi — Sheets Config'ten yüklenir, kodda saklanmaz
@@ -7495,6 +7495,7 @@ var _aoInspector   = null;    // inspector nesnesi
 var _aoHedef       = 100;
 
 var AO_LS_KEY = 'gemini_api_key_perf_panel';
+var AO_HARDCODED_KEY = 'AIzaSyAd3gjjpPR1E1Ecw3RJjqH9Q8fVwM1SX-k';
 
 function openAnalizOverlay(inspData, inspObj, hedef) {
   _aoData      = inspData;
@@ -7521,9 +7522,9 @@ function openAnalizOverlay(inspData, inspObj, hedef) {
   document.getElementById('ao-f-minadet').value  = 0;
   document.getElementById('ao-f-sort').value     = '';
 
-  // Gemini kayıtlı key yükle
+  // Gemini kayıtlı key yükle (önce sabit key, yoksa localStorage)
   try {
-    var savedKey = localStorage.getItem(AO_LS_KEY) || '';
+    var savedKey = AO_HARDCODED_KEY || localStorage.getItem(AO_LS_KEY) || '';
     if (savedKey) document.getElementById('ao-gkey').value = savedKey;
   } catch(e) {}
 
@@ -7784,8 +7785,8 @@ function _aoDataSummary() {
 }
 
 function aoCallGemini(userPrompt, title) {
-  var key = '';
-  try { key = localStorage.getItem(AO_LS_KEY) || ''; } catch(e) {}
+  var key = AO_HARDCODED_KEY || '';
+  if (!key) { try { key = localStorage.getItem(AO_LS_KEY) || ''; } catch(e) {} }
   if (!key) key = (document.getElementById('ao-gkey').value || '').trim();
   if (!key) { aoShowErr('Lütfen önce Gemini API anahtarınızı girin ve kaydedin.'); return; }
 
