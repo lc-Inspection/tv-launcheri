@@ -8196,6 +8196,7 @@ async function pullKlasmanAnalizFromSheets() {
       </div>
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
+      <button id="ao-refresh-btn" onclick="aoRefreshSheetsData()" style="padding:7px 14px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">🔄 Veri Çek</button>
       <button onclick="window.print()" style="padding:7px 14px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;" data-i18n="print_btn">🖨️ Print</button>
       <button onclick="exportInspectorDetailFromOverlay()" style="padding:7px 14px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;">📊 Excel</button>
     </div>
@@ -8448,6 +8449,117 @@ function openAnalizOverlay(inspData, inspObj, hedef) {
 function closeAnalizOverlay() {
   document.getElementById('analiz-overlay').style.display = 'none';
   document.body.style.overflow = '';
+}
+
+// ── Veri Çek / Yenile (manuel buton) ──
+function aoRefreshSheetsData() {
+  const inspector = selectedInspectorDetail;
+  if (!inspector) return;
+
+  const url   = appConfig.sheetsWebAppUrl;
+  const token = appConfig.sheetsApiToken;
+  if (!url || !token) {
+    alert('Google Sheets bağlantısı yapılandırılmamış.');
+    return;
+  }
+
+  // Buton durumu: yükleniyor
+  const btn = document.getElementById('ao-refresh-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span style="display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:ao-gspin .8s linear infinite;vertical-align:middle;margin-right:5px;"></span> Yükleniyor…';
+  }
+
+  // Loading banner
+  var loadBanner = document.getElementById('ao-sheets-loading');
+  if (!loadBanner) {
+    loadBanner = document.createElement('div');
+    loadBanner.id = 'ao-sheets-loading';
+    loadBanner.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#1565C0;color:#fff;padding:10px 18px;border-radius:10px;font-size:12px;font-family:DM Sans,sans-serif;z-index:9999;box-shadow:0 4px 16px rgba(21,101,192,.4);display:flex;align-items:center;gap:8px;';
+    loadBanner.innerHTML = '<div style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:ao-gspin .8s linear infinite;"></div> Veri yükleniyor…';
+    document.body.appendChild(loadBanner);
+  }
+
+  const buildTumKayitlar = (insp) => {
+    const list = [];
+    Object.entries(insp.klasmanlar).forEach(([klasmanAd, kd]) => {
+      (kd.kayitlar || []).forEach(k => {
+        list.push({
+          id: list.length + 1, klasman: klasmanAd,
+          adet: k.adet, kontrolAdetSuresi: k.kontrolAdetSuresi || 0,
+          istasyonSuresi: k.istasyonSuresi || 0, standartSure: k.standartSure || 0,
+          kayitFiiliSure: k.kayitFiiliSure || 0, baslangic: k.baslangic,
+          bitis: k.bitis, tarihGecerli: k.tarihGecerli,
+          ortalamaKontrolSn: k.adet > 0 && k.kayitFiiliSure > 0 ? Math.round(k.kayitFiiliSure / k.adet) : null
+        });
+      });
+    });
+    return list;
+  };
+
+  jsonpFetch(url, { action: 'getInspectorKayitlar', token, inspectorAdi: inspector.ins.normalize('NFC').trim() })
+    .then(function(data) {
+      if (data.status === 'ok' && data.kayitlar && typeof data.kayitlar === 'object') {
+        const insKlasmanKeys = Object.keys(inspector.klasmanlar);
+        const norm = function(s) { return s.normalize('NFC').trim().toLowerCase(); };
+        Object.entries(data.kayitlar).forEach(function([klasmanAd, kayitlarArr]) {
+          if (!Array.isArray(kayitlarArr) || !kayitlarArr.length) return;
+          var hedefKey = insKlasmanKeys.find(function(k) { return k === klasmanAd; })
+            || insKlasmanKeys.find(function(k) { return norm(k) === norm(klasmanAd); });
+          if (!hedefKey) return;
+          inspector.klasmanlar[hedefKey].kayitlar = kayitlarArr.map(function(r) {
+            return Object.assign({}, r, {
+              kontrolAdetSuresi: r.kontrolAdetSuresi || 0,
+              istasyonSuresi: r.istasyonSuresi || 0,
+              standartSure: r.standartSure || 0,
+              kayitFiiliSure: r.kayitFiiliSure || 0,
+              tarihGecerli: r.tarihGecerli || false,
+              baslangic: r.baslangic ? (function() { var d = new Date(r.baslangic); return isNaN(d.getTime()) ? null : d; })() : null,
+              bitis: r.bitis ? (function() { var d = new Date(r.bitis); return isNaN(d.getTime()) ? null : d; })() : null
+            });
+          });
+        });
+        // Overlay açıksa tabloyu güncelle
+        var ov = document.getElementById('analiz-overlay');
+        if (ov && ov.style.display !== 'none') {
+          var fresh = buildTumKayitlar(inspector);
+          _aoData = fresh;
+          _aoRenderStats();
+          aoApplyFilters();
+          var kb = Object.values(inspector.klasmanlar).reduce(function(s,kd) { return s + (kd.kayitlar||[]).length; }, 0);
+          console.log('[Veri Çek] Güncellendi:', kb, 'kayıt');
+        }
+        // Başarı bildirimi
+        if (btn) {
+          btn.innerHTML = '✅ Güncellendi';
+          setTimeout(function() {
+            if (btn) { btn.innerHTML = '🔄 Veri Çek'; btn.disabled = false; }
+          }, 2000);
+        }
+      } else {
+        // Veri gelmedi
+        if (btn) {
+          btn.innerHTML = '⚠️ Veri Gelmedi';
+          setTimeout(function() {
+            if (btn) { btn.innerHTML = '🔄 Veri Çek'; btn.disabled = false; }
+          }, 2500);
+        }
+        console.warn('[Veri Çek] Veri gelmedi:', data);
+      }
+    })
+    .catch(function(e) {
+      console.warn('[Veri Çek] Hata:', e.message);
+      if (btn) {
+        btn.innerHTML = '❌ Hata';
+        setTimeout(function() {
+          if (btn) { btn.innerHTML = '🔄 Veri Çek'; btn.disabled = false; }
+        }, 2500);
+      }
+    })
+    .finally(function() {
+      var b = document.getElementById('ao-sheets-loading');
+      if (b) b.remove();
+    });
 }
 
 // ── Stat Kartlar ──
