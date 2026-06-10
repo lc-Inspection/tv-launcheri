@@ -8695,143 +8695,234 @@ function exportInspectorDetailFromOverlay() {
 // ─── PWA — PROGRESSIVE WEB APP ───────────────────────────────────────────────
 // ════════════════════════════════════════════════════════════════════════════════
 
-// 1) Inline Web App Manifest (Blob URL olarak inject edilir — github.io'da ayrı dosya gerekmez)
+// 1) Inline Web App Manifest — Blob URL ile inject (manifest için Blob izinlidir)
 (function injectManifest() {
-  const manifest = {
+  var pageUrl = window.location.href.split('#')[0].split('?')[0];
+  var manifest = {
     name: 'Inspection Performans Paneli',
     short_name: 'Inspection',
     description: 'Inspector performans takip ve analiz paneli',
-    start_url: window.location.href,
+    start_url: pageUrl,
+    scope: pageUrl,
     display: 'standalone',
     orientation: 'landscape-primary',
     background_color: '#0B1F3A',
     theme_color: '#0B1F3A',
     lang: 'tr',
     icons: [
-      {
-        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='38' fill='%230B1F3A'/%3E%3Crect x='12' y='12' width='168' height='168' rx='28' fill='%231565C0'/%3E%3Ctext x='96' y='118' text-anchor='middle' font-family='Arial,sans-serif' font-size='72' font-weight='700' fill='white'%3ELC%3C/text%3E%3C/svg%3E",
-        sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable'
-      },
-      {
-        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='90' fill='%230B1F3A'/%3E%3Crect x='30' y='30' width='452' height='452' rx='70' fill='%231565C0'/%3E%3Ctext x='256' y='320' text-anchor='middle' font-family='Arial,sans-serif' font-size='200' font-weight='700' fill='white'%3ELC%3C/text%3E%3C/svg%3E",
-        sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable'
-      }
-    ],
-    categories: ['productivity', 'business'],
-    shortcuts: [
-      {
-        name: 'Dashboard',
-        url: window.location.href + '#dashboard',
-        description: 'Inspector Performans Dashboard'
-      }
+      { src: _pwaIcon(192), sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: _pwaIcon(512), sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
     ]
   };
   try {
-    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const link = document.getElementById('pwa-manifest-link');
+    var blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+    var url  = URL.createObjectURL(blob);
+    var link = document.getElementById('pwa-manifest-link');
     if (link) link.href = url;
-  } catch(e) { console.warn('PWA manifest inject failed:', e); }
+  } catch(e) { console.warn('[PWA] manifest inject failed:', e); }
 })();
 
-// 2) Service Worker — cache-first strateji (offline çalışma + hızlı açılış)
-(function registerSW() {
-  if (!('serviceWorker' in navigator)) return;
-  const SW_CODE = `
-const CACHE = 'inspection-panel-v1';
-const ASSETS = [self.location.href.split('?')[0]];
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
-});
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(
-    keys.filter(k => k !== CACHE).map(k => caches.delete(k))
-  )).then(() => self.clients.claim()));
-});
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      const fresh = fetch(e.request).then(resp => {
-        if (resp && resp.ok && resp.type === 'basic') {
-          const clone = resp.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return resp;
-      }).catch(() => cached);
-      return cached || fresh;
-    })
-  );
-});
-  `.trim();
+// PNG icon — canvas ile çiz (SVG data URI yerine gerçek PNG — Chrome bunu kabul eder)
+function _pwaIcon(size) {
   try {
-    const blob = new Blob([SW_CODE], { type: 'application/javascript' });
-    const swUrl = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swUrl, { scope: '/' })
-      .then(reg => { console.log('✅ SW registered, scope:', reg.scope); })
-      .catch(err => { console.warn('SW register failed (normal on file://):', err.message); });
-  } catch(e) { console.warn('SW blob failed:', e); }
+    var c = document.createElement('canvas');
+    c.width = c.height = size;
+    var ctx = c.getContext('2d');
+    var r = size * 0.2;
+    // Arka plan
+    ctx.fillStyle = '#0B1F3A';
+    _roundRect(ctx, 0, 0, size, size, r); ctx.fill();
+    // İç mavi kare
+    ctx.fillStyle = '#1565C0';
+    _roundRect(ctx, size*.07, size*.07, size*.86, size*.86, r*.7); ctx.fill();
+    // Metin
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold ' + Math.round(size*.38) + 'px Arial,sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('LC', size/2, size/2 + size*.03);
+    return c.toDataURL('image/png');
+  } catch(e) { return ''; }
+}
+function _roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w,y, x+w,y+r, r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w,y+h, x+w-r,y+h, r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x,y+h, x,y+h-r, r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x,y, x+r,y, r);
+  ctx.closePath();
+}
+
+// 2) Service Worker — aynı origin'den kayıt zorunlu
+//    GitHub Pages'te sw.js ayrı dosya olmadığından, HTML sayfasının içine
+//    gömülü script'i ServiceWorker olarak kaydetmek için
+//    'importScripts trick' veya inline blob kullanılamaz (Chrome güvenliği).
+//    Çözüm: SW kodunu data: URI ile kayıt → Chrome 91+ destekler.
+(function registerSW() {
+  if (!('serviceWorker' in navigator)) { console.warn('[PWA] SW not supported'); return; }
+  var pageScope = window.location.pathname.replace(/[^/]*$/, '') || '/';
+  var swCode = [
+    "const V='ip-v2';",
+    "const URL='" + window.location.href.split('?')[0] + "';",
+    "self.addEventListener('install',e=>{",
+    "  e.waitUntil(caches.open(V).then(c=>c.add(URL)).then(()=>self.skipWaiting()));",
+    "});",
+    "self.addEventListener('activate',e=>{",
+    "  e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));",
+    "});",
+    "self.addEventListener('fetch',e=>{",
+    "  if(e.request.method!=='GET')return;",
+    "  e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{",
+    "    if(r&&r.ok&&r.type==='basic'){const cl=r.clone();caches.open(V).then(cache=>cache.put(e.request,cl));}",
+    "    return r;",
+    "  })));",
+    "});"
+  ].join('\n');
+
+  // Önce: same-origin script çalışıyor mu? (GitHub Pages'te panel.html ile aynı dizin)
+  // SW kayıt için: önce navigator.serviceWorker.register normal URL dene,
+  // olmadığında Blob ile dene (Firefox, Android destekler)
+  function tryBlobSW() {
+    try {
+      var blob = new Blob([swCode], { type: 'text/javascript' });
+      var blobUrl = URL.createObjectURL(blob);
+      // Chrome Blob SW'yi reddeder ama Firefox/Edge (bazı sürümler) kabul eder
+      navigator.serviceWorker.register(blobUrl, { scope: pageScope })
+        .then(function(reg) { console.log('[PWA] SW via blob OK, scope:', reg.scope); })
+        .catch(function(e)  { console.warn('[PWA] SW blob rejected:', e.message); });
+    } catch(e) { console.warn('[PWA] SW blob failed:', e); }
+  }
+
+  // sw.js aynı dizinde var mı? (GitHub Pages'te el ile eklenirse)
+  var swPath = pageScope + 'sw.js';
+  navigator.serviceWorker.register(swPath, { scope: pageScope })
+    .then(function(reg) { console.log('[PWA] SW from sw.js OK:', reg.scope); })
+    .catch(function()   { tryBlobSW(); });
 })();
 
-// 3) Install Prompt — beforeinstallprompt olayını yakala
+// 3) Install Prompt
 var _pwaInstallPrompt = null;
+var _pwaInstallable   = false;
+
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   _pwaInstallPrompt = e;
-  // Topbar butonunu göster
-  var btn = document.getElementById('pwa-install-btn');
-  if (btn) btn.style.display = 'inline-flex';
-  // Login ekranındaki butonu da göster
-  var loginRow = document.getElementById('pwa-install-login-row');
-  if (loginRow) loginRow.style.display = 'block';
-  console.log('✅ PWA install prompt ready');
+  _pwaInstallable   = true;
+  _pwaShowBtn();
+  console.log('[PWA] beforeinstallprompt fired ✅');
 });
 
 window.addEventListener('appinstalled', function() {
   _pwaInstallPrompt = null;
+  _pwaInstallable   = false;
+  _pwaHideBtn();
+  var t = translations[currentLang] || translations.tr;
+  try { showSuccessMessage(t.pwa_installed || '✅ Uygulama yüklendi!'); } catch(e) {}
+});
+
+// Sayfa yüklenince: zaten yüklü mü kontrol et
+window.addEventListener('load', function() {
+  // standalone modda açıldıysa zaten yüklü — butonu gösterme
+  if (window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true) {
+    _pwaHideBtn();
+    console.log('[PWA] Running as installed app');
+    return;
+  }
+  // Yüklü değil — butonu HER ZAMAN göster (beforeinstallprompt gelmese bile)
+  // 2 saniye bekle, prompt gelmediyse yine de butonu göster
+  setTimeout(function() {
+    if (!_pwaInstallable) {
+      // Prompt gelmedi ama tarayıcı destekliyor olabilir; butonu göster
+      // tıklandığında adres çubuğu ikonuna yönlendiririz
+      _pwaShowBtn();
+      console.log('[PWA] Showing install btn (no prompt yet — may appear later)');
+    }
+  }, 1500);
+});
+
+function _pwaShowBtn() {
+  var btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'inline-flex';
+  var loginRow = document.getElementById('pwa-install-login-row');
+  if (loginRow) loginRow.style.display = 'block';
+}
+function _pwaHideBtn() {
   var btn = document.getElementById('pwa-install-btn');
   if (btn) btn.style.display = 'none';
   var loginRow = document.getElementById('pwa-install-login-row');
   if (loginRow) loginRow.style.display = 'none';
-  var t = translations[currentLang] || translations.tr;
-  showSuccessMessage(t.pwa_installed || '✅ Uygulama yüklendi!');
-  console.log('✅ PWA installed');
-});
+}
 
 function pwaTriggerInstall() {
-  if (!_pwaInstallPrompt) {
-    // Tarayıcı prompt'u desteklemiyorsa kullanıcıya bilgi ver
-    var t = translations[currentLang] || translations.tr;
-    var msg = currentLang === 'en'
-      ? 'To install:\n• Chrome/Edge: Click ⊕ icon in the address bar\n• Safari (iOS): Share → "Add to Home Screen"'
-      : 'Yüklemek için:\n• Chrome/Edge: Adres çubuğundaki ⊕ ikonuna tıklayın\n• Safari (iOS): Paylaş → "Ana Ekrana Ekle"';
-    alert(msg);
-    return;
-  }
-  var btn = document.getElementById('pwa-install-btn');
-  if (btn) {
-    var t = translations[currentLang] || translations.tr;
-    btn.innerHTML = '⏳ <span>' + (t.pwa_installing || 'Yükleniyor...') + '</span>';
-    btn.disabled = true;
-  }
-  _pwaInstallPrompt.prompt();
-  _pwaInstallPrompt.userChoice.then(function(result) {
-    if (result.outcome === 'accepted') {
-      console.log('✅ User accepted PWA install');
-    } else {
-      // Reddetti — butonu geri aç
-      if (btn) {
-        var t2 = translations[currentLang] || translations.tr;
-        btn.innerHTML = '⬇️ <span data-i18n="pwa_install">' + (t2.pwa_install || 'Uygulamayı Yükle') + '</span>';
-        btn.disabled = false;
+  if (_pwaInstallPrompt) {
+    // Tarayıcının native install dialogu
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) { btn.innerHTML = '⏳'; btn.disabled = true; }
+    _pwaInstallPrompt.prompt();
+    _pwaInstallPrompt.userChoice.then(function(choice) {
+      if (choice.outcome !== 'accepted') {
+        if (btn) {
+          var t = translations[currentLang] || translations.tr;
+          btn.innerHTML = '⬇️ <span>' + (t.pwa_install || 'Uygulamayı Yükle') + '</span>';
+          btn.disabled = false;
+        }
       }
+      _pwaInstallPrompt = null;
+    });
+  } else {
+    // Prompt yok — tarayıcıya göre talimat ver
+    var isEdge    = /Edg\//.test(navigator.userAgent);
+    var isChrome  = /Chrome\//.test(navigator.userAgent) && !isEdge;
+    var isSafari  = /Safari\//.test(navigator.userAgent) && !isChrome && !isEdge;
+    var isMobile  = /Android|iPhone|iPad/.test(navigator.userAgent);
+    var t = translations[currentLang] || translations.tr;
+    var msg;
+    if (currentLang === 'en') {
+      if (isMobile && isSafari)
+        msg = '📱 To install on iPhone/iPad:\n1. Tap the Share button (□↑)\n2. Select "Add to Home Screen"\n3. Tap "Add"';
+      else if (isMobile)
+        msg = '📱 To install on Android:\n1. Tap the browser menu (⋮)\n2. Select "Add to Home Screen" or "Install App"';
+      else if (isEdge)
+        msg = '💻 To install in Edge:\n1. Look for the ⊕ icon in the address bar (right side)\n2. Or go to Menu (…) → Apps → Install this site as an app';
+      else
+        msg = '💻 To install in Chrome:\n1. Look for the ⊕ icon in the address bar (right side)\n2. Or go to Menu (⋮) → Save and share → Install page as app';
+    } else {
+      if (isMobile && isSafari)
+        msg = '📱 iPhone/iPad\'a yüklemek için:\n1. Paylaş butonuna (□↑) dokunun\n2. "Ana Ekrana Ekle"yi seçin\n3. "Ekle"ye dokunun';
+      else if (isMobile)
+        msg = '📱 Android\'e yüklemek için:\n1. Tarayıcı menüsüne (⋮) dokunun\n2. "Ana Ekrana Ekle" veya "Uygulama Yükle"yi seçin';
+      else if (isEdge)
+        msg = '💻 Edge\'e yüklemek için:\n1. Adres çubuğunun sağındaki ⊕ ikonunu arayın\n2. Veya Menü (…) → Uygulamalar → Bu siteyi uygulama olarak yükle';
+      else
+        msg = '💻 Chrome\'a yüklemek için:\n1. Adres çubuğunun sağındaki ⊕ ikonunu arayın\n2. Veya Menü (⋮) → Kaydet ve paylaş → Sayfayı uygulama olarak yükle';
     }
-    _pwaInstallPrompt = null;
-  });
+    // Güzel bir modal göster
+    _pwaShowInstallGuide(msg);
+  }
+}
+
+// Install rehberi modal
+function _pwaShowInstallGuide(msg) {
+  var existing = document.getElementById('pwa-guide-modal');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'pwa-guide-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(11,31,58,.6);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:fadeIn .2s ease';
+  var t = translations[currentLang] || translations.tr;
+  var lines = msg.split('\n').map(function(l) {
+    return l ? '<div style="padding:3px 0;' + (l.startsWith('1.')||l.startsWith('2.')||l.startsWith('3.') ? 'padding-left:8px;' : 'font-weight:700;font-size:14px;margin-bottom:4px;') + '">' + l + '</div>' : '<div style="height:4px"></div>';
+  }).join('');
+  overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(11,31,58,.35);text-align:left;font-family:DM Sans,sans-serif;animation:popIn .2s ease">'
+    + '<div style="font-size:18px;font-weight:700;color:#0B1F3A;margin-bottom:14px">⬇️ ' + (t.pwa_install_full || 'Uygulamayı Yükle') + '</div>'
+    + '<div style="font-size:13px;color:#0D1B2E;line-height:1.7;background:#EEF7FF;border-radius:10px;padding:14px 16px;border:1px solid #CFE3F7">' + lines + '</div>'
+    + '<div style="margin-top:16px;text-align:right"><button onclick="document.getElementById(\'pwa-guide-modal\').remove()" style="padding:9px 22px;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Tamam</button></div>'
+    + '</div>';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 // ─── END PWA ─────────────────────────────────────────────────────────────────
-
 </script>
 </body>
 </html>
