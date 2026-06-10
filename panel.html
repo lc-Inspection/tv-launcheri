@@ -4653,9 +4653,25 @@ function parseMesaiSuresi(val) {
 // YARDIMCILAR
 // ────────────────────────────
 function birAdet(k){ 
-  const istasyonSuresi = k.istasyonlar.reduce((s,i)=>s+(parseFloat(i.sure)||0),0);
-  const urunKontrolSuresi = parseFloat(k.urunKontrolSuresi) || 0;
-  return istasyonSuresi + urunKontrolSuresi;
+  // Sabit istasyonlar: adet ne olursa 1 kez
+  // Adet başına istasyonlar: 1 adet için göster
+const istasyonSuresi = k.istasyonlar.reduce((s,i)=>s+(parseFloat(i.sure)||0),0);
+const urunKontrolSuresi = parseFloat(k.urunKontrolSuresi) || 0;
+const toplamSure = istasyonSuresi + urunKontrolSuresi;
+const sabitIst = k.istasyonlar.filter(i=>(i.tip||'sabit')==='sabit').reduce((s,i)=>s+(parseFloat(i.sure)||0),0);
+const adetIst  = k.istasyonlar.filter(i=>i.tip==='adet').reduce((s,i)=>s+(parseFloat(i.sure)||0),0);
+}
+
+// Adet bazlı standart süre hesabı (asıl hesaplama için)
+function hesaplaStandartSure(k, adet) {
+  const urunKontrol = parseFloat(k.urunKontrolSuresi) || 0;
+  const sabitSure = k.istasyonlar
+    .filter(i => (i.tip || 'sabit') === 'sabit')
+    .reduce((s,i) => s + (parseFloat(i.sure)||0), 0);
+  const adetBazliSure = k.istasyonlar
+    .filter(i => i.tip === 'adet')
+    .reduce((s,i) => s + (parseFloat(i.sure)||0), 0);
+  return (urunKontrol * adet) + sabitSure + (adetBazliSure * adet);
 }
 
 function updateSidebar(){
@@ -5710,20 +5726,35 @@ function renderEditor(){
             <p style="font-size:11px;color:var(--muted2)" data-i18n="add_first_station">Add the first station to start defining this classification</p>
           </div>
         `:''}
-        ${k.istasyonlar.map((ist,i)=>`
-          <div style="display:grid;grid-template-columns:40px 1fr auto auto auto;gap:12px;align-items:center;padding:12px;background:var(--white);border:1px solid var(--border2);border-radius:8px;margin-bottom:8px">
-            <div style="width:28px;height:28px;border-radius:50%;background:var(--lblue2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--blue)">${i+1}</div>
-            <input value="${ist.ad}" onchange="updateIst(${k.id},${ist.id},'ad',this.value)" placeholder="İstasyon adı" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px">
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="number" value="${ist.sure}" min="0" step="1"
-                onchange="updateIst(${k.id},${ist.id},'sure',this.value)" style="width:80px;text-align:right;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px">
-              <span style="font-size:11px;color:var(--muted);white-space:nowrap">sn</span>
-            </div>
-            <div style="font-size:10px;color:var(--muted2);text-align:right;min-width:40px">
-              ${toplamSure > 0 ? ((parseFloat(ist.sure)||0)/toplamSure*100).toFixed(0) : 0}%
-            </div>
-            <button onclick="deleteIst(${k.id},${ist.id})" style="width:28px;height:28px;border:none;background:var(--lred);color:var(--red);border-radius:6px;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center" title="İstasyonu Sil">🗑</button>
-          </div>`).join('')}
+       ${k.istasyonlar.map((ist,i)=>{
+  const istTip = ist.tip || 'sabit';
+  const isSabit = istTip === 'sabit';
+  return `
+  <div style="display:grid;grid-template-columns:40px 1fr auto auto auto auto;gap:10px;align-items:center;padding:12px;background:var(--white);border:1px solid ${isSabit?'var(--border2)':'#CE93D8'};border-radius:8px;margin-bottom:8px;transition:border-color .15s">
+    <div style="width:28px;height:28px;border-radius:50%;background:${isSabit?'var(--lblue2)':'#F3E5F5'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:${isSabit?'var(--blue)':'#6A1B9A'}">${i+1}</div>
+    <input value="${ist.ad}" onchange="updateIst(${k.id},${ist.id},'ad',this.value)" placeholder="İstasyon adı" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <input type="number" value="${ist.sure}" min="0" step="1"
+        onchange="updateIst(${k.id},${ist.id},'sure',this.value)" style="width:75px;text-align:right;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap">sn</span>
+    </div>
+    <!-- TİP TOGGLE -->
+    <div style="display:flex;border-radius:7px;overflow:hidden;border:1px solid ${isSabit?'var(--border)':'#CE93D8'};flex-shrink:0;">
+      <button onclick="updateIst(${k.id},${ist.id},'tip','sabit')"
+        style="padding:5px 9px;font-size:10px;font-weight:700;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .12s;
+        background:${isSabit?'var(--navy)':'var(--white)'};color:${isSabit?'#fff':'var(--muted)'};"
+        title="Sabit: parti başına 1 kez">📌 Sabit</button>
+      <button onclick="updateIst(${k.id},${ist.id},'tip','adet')"
+        style="padding:5px 9px;font-size:10px;font-weight:700;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .12s;
+        background:${!isSabit?'#6A1B9A':'var(--white)'};color:${!isSabit?'#fff':'var(--muted)'};"
+        title="Adet Başına: her ürün için">⚡ Adet/Adet</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted2);text-align:right;min-width:36px">
+      ${toplamSure > 0 ? ((parseFloat(ist.sure)||0)/toplamSure*100).toFixed(0) : 0}%
+    </div>
+    <button onclick="deleteIst(${k.id},${ist.id})" style="width:28px;height:28px;border:none;background:var(--lred);color:var(--red);border-radius:6px;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center" title="İstasyonu Sil">🗑</button>
+  </div>`;
+}).join('')}
       </div>
       
       ${k.istasyonlar.length>0 || urunKontrolSuresi>0?`
@@ -5738,8 +5769,20 @@ function renderEditor(){
               <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px" data-i18n="station_count">Station Count</div>
             </div>
             <div>
-              <div style="font-size:18px;font-weight:700;color:var(--green);font-family:'DM Mono',monospace">${(toplamSure/60).toFixed(1)}</div>
-              <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Dakika/Adet</div>
+              <div style="font-size:18px;font-weight:700;color:var(--navy);font-family:'DM Mono',monospace">${toplamSure.toFixed(0)}</div>
+<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px" data-i18n="total_duration_label">Total Duration (s)</div>
+</div>
+<div>
+<div style="font-size:18px;font-weight:700;color:var(--blue);font-family:'DM Mono',monospace">${k.istasyonlar.length}</div>
+<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px" data-i18n="station_count">Station Count</div>
+</div>
+<div>
+<div style="font-size:13px;font-weight:700;color:var(--navy);font-family:'DM Mono',monospace;line-height:1.4">
+  ${sabitIst > 0 ? `<div style="color:#1565C0">📌 ${sabitIst}sn sabit</div>` : ''}
+  ${adetIst  > 0 ? `<div style="color:#6A1B9A">⚡ ${adetIst}sn/adet</div>` : ''}
+  ${sabitIst === 0 && adetIst === 0 ? `<div style="color:var(--muted2)">—</div>` : ''}
+</div>
+<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">İstasyon Tipi</div>
             </div>
           </div>
         </div>`:''}
@@ -5759,7 +5802,9 @@ function updateIst(kId,iId,alan,val){
   const k=klasmanlar.find(x=>x.id===kId);
   const ist=k&&k.istasyonlar.find(i=>i.id===iId);
   if(!ist) return;
-  if(alan==='sure') ist.sure=parseFloat(val)||0; else ist.ad=val;
+  if(alan==='sure') ist.sure=parseFloat(val)||0;
+  else if(alan==='tip') ist.tip=val;
+  else ist.ad=val;
   autoSaveAndPushKlasmanlar();
   renderEditor(); renderListe();
 }
@@ -5848,7 +5893,7 @@ function addIstasyon(kId){
   const k=klasmanlar.find(x=>x.id===kId);
   if(!k) return;
   const nid=Math.max(0,...k.istasyonlar.map(i=>i.id))+1;
-  k.istasyonlar.push({id:nid,ad:'Yeni İstasyon',sure:60});
+  k.istasyonlar.push({id:nid, ad:'Yeni İstasyon', sure:60, tip:'sabit'});
   autoSaveAndPushKlasmanlar();
   renderEditor(); renderListe();
 }
@@ -6319,13 +6364,21 @@ function performansHesapla(){
   function normalize(str) { return String(str).toLowerCase().trim().replace(/[^\w]/g,''); }
   const klasmanMap = {};
   klasmanlar.forEach(k => {
-    const normalKey = normalize(k.ad);
-    klasmanMap[normalKey] = {
-      urunKontrolSuresi: parseFloat(k.urunKontrolSuresi) || 0,
-      istasyonSuresi: k.istasyonlar.reduce((s,i)=>s+(parseFloat(i.sure)||0),0),
-      istasyonDetay: k.istasyonlar.map(i => ({ ad: i.ad, sure: parseFloat(i.sure)||0 }))
-    };
-  });
+  const normalKey = normalize(k.ad);
+  const sabitIstasyonSuresi = k.istasyonlar
+    .filter(i => (i.tip || 'sabit') === 'sabit')
+    .reduce((s,i) => s + (parseFloat(i.sure)||0), 0);
+  const adetBazliIstasyonSuresi = k.istasyonlar
+    .filter(i => i.tip === 'adet')
+    .reduce((s,i) => s + (parseFloat(i.sure)||0), 0);
+  klasmanMap[normalKey] = {
+    urunKontrolSuresi: parseFloat(k.urunKontrolSuresi) || 0,
+    sabitIstasyonSuresi,
+    adetBazliIstasyonSuresi,
+    istasyonSuresi: k.istasyonlar.reduce((s,i)=>s+(parseFloat(i.sure)||0),0), // geriye dönük uyumluluk
+    istasyonDetay: k.istasyonlar.map(i => ({ ad: i.ad, sure: parseFloat(i.sure)||0, tip: i.tip||'sabit' }))
+  };
+});
 
   const inspectorMap = {};
   const eslesmeyenKlasmanlar = new Set();
@@ -6395,8 +6448,10 @@ function performansHesapla(){
       tarihHataliKayitlar++;
     }
 
-    // Standart süre = (1 adet kontrol süresi × adet) + sabit istasyon süresi
-    const standartSure = (klasmanInfo.urunKontrolSuresi * adet) + klasmanInfo.istasyonSuresi;
+    // Standart süre = (ürün kontrol süresi × adet) + sabit istasyonlar + (adet bazlı istasyonlar × adet)
+const standartSure = (klasmanInfo.urunKontrolSuresi * adet) 
+  + klasmanInfo.sabitIstasyonSuresi 
+  + (klasmanInfo.adetBazliIstasyonSuresi * adet);
 
     // Bu kaydın fiili süresi = başlangıç-bitiş farkı (mola düşümlü)
     const kayitFiiliSure = tarihGecerli
