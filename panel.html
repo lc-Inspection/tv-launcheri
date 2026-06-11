@@ -6537,17 +6537,17 @@ function performansHesapla(){
   function getOlcuAdet(adet) {
     if (adet <= 32)  return 6;
     if (adet <= 50)  return 9;
-    if (adet <= 80)  return 12;
-    if (adet <= 125) return 15;
-    return 18;
+    if (adet <= 80)  return 9;
+    if (adet <= 125) return 9;
+    return 12;
   }
 
   // Ürün Kabul katsayısı: BakilacakMiktar → kaç kat
   function getUrunKabulKat(adet) {
-    if (adet <= 32)  return 1;
+    if (adet <= 32)  return 0.5;
     if (adet <= 80)  return 1.1;
-    if (adet <= 125) return 1.3;
-    return 1.6;
+    if (adet <= 125) return 1.2;
+    return 1.3;
   }
 
   function normalize(str) { return String(str).toLowerCase().trim().replace(/[^\w]/g,''); }
