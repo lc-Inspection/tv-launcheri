@@ -5328,10 +5328,10 @@ function showInspectorDetail(inspectorName) {
   openAnalizOverlay(buildTumKayitlar(inspector), inspector, _aoHedefValNow);
 
   // ── ARKA PLAN: Sheets'ten veri çek, gelince tabloyu güncelle ──
-  const herhangiKayitVar = Object.values(inspector.klasmanlar || {}).some(
-    kd => Array.isArray(kd.kayitlar) && kd.kayitlar.length > 0
-  );
-  if (!herhangiKayitVar) {
+  // Her zaman Sheets'ten taze veriyi çek (kayıtlar memory'de olsa bile)
+const url   = appConfig.sheetsWebAppUrl;
+const token = appConfig.sheetsApiToken;
+if (url && token) {
     const url   = appConfig.sheetsWebAppUrl;
     const token = appConfig.sheetsApiToken;
     if (url && token) {
