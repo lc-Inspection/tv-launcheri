@@ -8506,7 +8506,43 @@ async function pullKlasmanAnalizFromSheets() {
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
       <button id="ao-refresh-btn" onclick="aoRefreshSheetsData()" style="padding:7px 14px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">🔄 Veri Çek</button>
-     <div style="position:relative;">
+   <div style="position:relative;">
+  <button id="gunluk-popup-btn" onclick="toggleGunlukPopup()" style="padding:7px 14px;background:rgba(21,101,192,0.85);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s;" onmouseover="this.style.background='#1565C0'" onmouseout="this.style.background='rgba(21,101,192,0.85)'">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Günlük Detay
+    <span id="gunluk-popup-chevron" style="font-size:10px;transition:transform .3s;">▶</span>
+  </button>
+
+  <div id="gunluk-popup-card" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:560px;max-width:90vw;background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:200;animation:otSlideIn .3s cubic-bezier(.4,0,.2,1);">
+    <!-- Header -->
+    <div style="background:#1565C0;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:8px;color:#fff;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Günlük Üretim & Mesai Detayı
+      </div>
+      <button onclick="toggleGunlukPopup()" style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:0;background:#f8f9fa;max-height:360px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;font-family:'DM Sans',sans-serif;">
+        <thead style="position:sticky;top:0;z-index:5;">
+          <tr style="background:#eef2f7;">
+            <th style="padding:8px 10px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">Tarih</th>
+            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">Toplam Adet</th>
+            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">Normal Saatte</th>
+            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">Overtime'da</th>
+            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">OT Süresi</th>
+          </tr>
+        </thead>
+        <tbody id="gunluk-tablo-body"></tbody>
+      </table>
+    </div>
+    <div style="padding:8px 14px;font-size:10px;color:#9ca3af;background:#fff;border-top:0.5px solid #e5e7eb;">
+      Normal saat: 08:00–16:30 · Overtime: 16:30–20:00 · Adetler kayıt süresine göre orantılı bölünmüştür
+    </div>
+  </div>
+</div>
+      <div style="position:relative;">
   <button id="ot-popup-btn" onclick="toggleOtPopup()" style="padding:7px 14px;background:rgba(232,93,47,0.85);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s;" onmouseover="this.style.background='#D85A30'" onmouseout="this.style.background='rgba(232,93,47,0.85)'">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M12 2v2M2 12h2M12 22v-2M22 12h-2" stroke-width="1.5" opacity=".5"/></svg>
     Overtime
@@ -9659,6 +9695,125 @@ function _pwaShowInstallGuide(msg) {
     });
   }, 10);
 }
+function toggleGunlukPopup() {
+  var card    = document.getElementById('gunluk-popup-card');
+  var chevron = document.getElementById('gunluk-popup-chevron');
+  var isOpen  = card.style.display !== 'none';
+
+  if (isOpen) {
+    card.style.display = 'none';
+    chevron.style.transform = 'rotate(0deg)';
+    return;
+  }
+
+  _renderGunlukTablo();
+  card.style.display = 'block';
+  chevron.style.transform = 'rotate(90deg)';
+
+  setTimeout(function() {
+    document.addEventListener('click', function closeGunluk(e) {
+      if (!document.getElementById('gunluk-popup-card').contains(e.target) &&
+          !document.getElementById('gunluk-popup-btn').contains(e.target)) {
+        card.style.display = 'none';
+        chevron.style.transform = 'rotate(0deg)';
+        document.removeEventListener('click', closeGunluk);
+      }
+    });
+  }, 10);
+}
+
+function _renderGunlukTablo() {
+  var tbody = document.getElementById('gunluk-tablo-body');
+  if (!_aoInspector || !_aoData.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:#9ca3af;">Veri yok</td></tr>';
+    return;
+  }
+
+  var gunMap = {};
+
+  function winOverlapSn(bas, bit, h1, m1, h2, m2, gunBase) {
+    var wB = new Date(gunBase); wB.setHours(h1, m1, 0, 0);
+    var wE = new Date(gunBase); wE.setHours(h2, m2, 0, 0);
+    var s = Math.max(bas.getTime(), wB.getTime());
+    var e = Math.min(bit.getTime(), wE.getTime());
+    return Math.max(0, (e - s) / 1000);
+  }
+
+  _aoData.forEach(function(k) {
+    if (!k.tarihGecerli || !k.baslangic || !k.bitis) return;
+    var bas = k.baslangic instanceof Date ? k.baslangic : new Date(k.baslangic);
+    var bit = k.bitis instanceof Date ? k.bitis : new Date(k.bitis);
+    if (isNaN(bas.getTime()) || isNaN(bit.getTime())) return;
+
+    var gunStr  = bas.toDateString();
+    var gunBase = new Date(gunStr);
+
+    var normalSn = winOverlapSn(bas, bit, 8, 0, 16, 30, gunBase);
+    var otSn     = winOverlapSn(bas, bit, 16, 30, 20, 0, gunBase);
+    var totalSn  = normalSn + otSn;
+
+    if (!gunMap[gunStr]) {
+      gunMap[gunStr] = { tarih: gunBase, toplamAdet: 0, normalAdet: 0, otAdet: 0, otSureDk: 0 };
+    }
+
+    var g = gunMap[gunStr];
+    g.toplamAdet += k.adet || 0;
+
+    if (totalSn > 0) {
+      g.normalAdet += (k.adet || 0) * (normalSn / totalSn);
+      g.otAdet     += (k.adet || 0) * (otSn / totalSn);
+    } else {
+      g.normalAdet += k.adet || 0;
+    }
+  });
+
+  var otDetay = (_aoInspector.gunlukOvertimeDetay || {});
+  Object.keys(otDetay).forEach(function(gunStr) {
+    if (gunMap[gunStr]) {
+      gunMap[gunStr].otSureDk = otDetay[gunStr];
+    } else {
+      gunMap[gunStr] = { tarih: new Date(gunStr), toplamAdet: 0, normalAdet: 0, otAdet: 0, otSureDk: otDetay[gunStr] };
+    }
+  });
+
+  var gunler = Object.values(gunMap).sort(function(a, b) { return a.tarih - b.tarih; });
+
+  if (!gunler.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:#9ca3af;">Veri yok</td></tr>';
+    return;
+  }
+
+  function fmtSaat(dk) {
+    if (!dk) return '—';
+    var h = Math.floor(dk / 60), m = Math.round(dk % 60);
+    return h > 0 ? h + 's ' + m + 'd' : m + 'd';
+  }
+
+  var rows = gunler.map(function(g) {
+    var tarihStr = g.tarih.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'short' });
+    return '<tr style="border-bottom:1px solid #f3f4f6;">'
+      + '<td style="padding:8px 10px;font-size:12px;color:#111827;font-weight:500;">' + tarihStr + '</td>'
+      + '<td style="padding:8px 10px;text-align:center;font-size:13px;font-weight:600;color:#111827;">' + Math.round(g.toplamAdet) + '</td>'
+      + '<td style="padding:8px 10px;text-align:center;font-size:12px;color:#1d4ed8;">' + Math.round(g.normalAdet) + '</td>'
+      + '<td style="padding:8px 10px;text-align:center;font-size:12px;color:#D85A30;font-weight:600;">' + Math.round(g.otAdet) + '</td>'
+      + '<td style="padding:8px 10px;text-align:center;font-size:12px;color:' + (g.otSureDk > 0 ? '#D85A30' : '#9ca3af') + ';font-weight:' + (g.otSureDk > 0 ? '600' : '400') + ';">' + fmtSaat(g.otSureDk) + '</td>'
+      + '</tr>';
+  }).join('');
+
+  var tAdet = 0, tNormal = 0, tOt = 0, tOtDk = 0;
+  gunler.forEach(function(g) { tAdet += g.toplamAdet; tNormal += g.normalAdet; tOt += g.otAdet; tOtDk += g.otSureDk; });
+
+  rows += '<tr style="background:#f1f5f9;border-top:2px solid #e5e7eb;">'
+    + '<td style="padding:8px 10px;font-size:12px;font-weight:700;color:#111827;">TOPLAM</td>'
+    + '<td style="padding:8px 10px;text-align:center;font-size:13px;font-weight:700;color:#111827;">' + Math.round(tAdet) + '</td>'
+    + '<td style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#1d4ed8;">' + Math.round(tNormal) + '</td>'
+    + '<td style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#D85A30;">' + Math.round(tOt) + '</td>'
+    + '<td style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#D85A30;">' + fmtSaat(tOtDk) + '</td>'
+    + '</tr>';
+
+  tbody.innerHTML = rows;
+}
+  
 </script>
 </body>
 </html>
