@@ -6,389 +6,187 @@
 <title>SignagePanel — Yönetim</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
-  --blue-900: #0a1628;
-  --blue-800: #0d2045;
-  --blue-700: #0f2d6b;
-  --blue-600: #1a3fa0;
-  --blue-500: #2356d4;
-  --blue-400: #4178f0;
-  --blue-300: #6b9bf8;
-  --blue-200: #a8c4fc;
-  --blue-100: #dce8ff;
-  --blue-50:  #f0f5ff;
-  --white:    #ffffff;
-  --gray-50:  #f8fafc;
-  --gray-100: #f1f5f9;
-  --gray-200: #e2e8f0;
-  --gray-300: #cbd5e1;
-  --gray-400: #94a3b8;
-  --gray-500: #64748b;
-  --gray-600: #475569;
-  --gray-700: #334155;
-  --gray-800: #1e293b;
-  --danger:   #dc2626;
-  --danger-bg:#fef2f2;
-  --success:  #16a34a;
-  --success-bg:#f0fdf4;
-  --warn:     #d97706;
-  --radius:   12px;
-  --radius-sm: 8px;
-  --radius-xs: 5px;
-  --shadow:   0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 16px rgba(35,86,212,0.12);
-  --shadow-lg: 0 8px 32px rgba(35,86,212,0.18);
+  --blue-900:#0a1628;--blue-700:#0f2d6b;--blue-600:#1a3fa0;--blue-500:#2356d4;
+  --blue-400:#4178f0;--blue-300:#6b9bf8;--blue-200:#a8c4fc;--blue-100:#dce8ff;--blue-50:#f0f5ff;
+  --white:#fff;--gray-50:#f8fafc;--gray-100:#f1f5f9;--gray-200:#e2e8f0;--gray-300:#cbd5e1;
+  --gray-400:#94a3b8;--gray-500:#64748b;--gray-600:#475569;--gray-700:#334155;--gray-800:#1e293b;
+  --danger:#dc2626;--danger-bg:#fef2f2;--success:#16a34a;--success-bg:#f0fdf4;--warn:#d97706;
+  --radius:12px;--radius-sm:8px;--radius-xs:5px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 4px 16px rgba(35,86,212,.12);--shadow-lg:0 8px 32px rgba(35,86,212,.18);
 }
+body{background:var(--gray-50);color:var(--gray-800);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-height:100vh}
 
-body {
-  background: var(--gray-50);
-  color: var(--gray-800);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-  font-size: 14px;
-  min-height: 100vh;
-}
+/* LOGIN */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--blue-900) 0%,var(--blue-700) 50%,var(--blue-500) 100%)}
+#login-screen.hidden{display:none}
+.login-card{background:var(--white);border-radius:20px;padding:48px 44px;width:380px;box-shadow:var(--shadow-lg);text-align:center}
+.login-logo{width:56px;height:56px;background:linear-gradient(135deg,var(--blue-500),var(--blue-300));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;box-shadow:0 4px 14px rgba(35,86,212,.35)}
+.login-logo svg{width:28px;height:28px;fill:white}
+.login-title{font-size:22px;font-weight:700;color:var(--gray-800);margin-bottom:6px}
+.login-sub{font-size:13.5px;color:var(--gray-500);margin-bottom:32px}
+.login-iw{position:relative;margin-bottom:14px}
+.login-iw svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--gray-400);fill:none}
+.login-iw input{width:100%;padding:11px 14px 11px 42px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:14px;color:var(--gray-800);outline:none;transition:.2s;background:var(--gray-50)}
+.login-iw input:focus{border-color:var(--blue-400);box-shadow:0 0 0 3px rgba(65,120,240,.12);background:white}
+.login-iw input::placeholder{color:var(--gray-400)}
+.login-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--blue-500),var(--blue-400));color:white;border:none;border-radius:var(--radius-sm);font-size:14.5px;font-weight:600;cursor:pointer;transition:.15s;box-shadow:0 3px 10px rgba(35,86,212,.3)}
+.login-btn:hover{opacity:.92}.login-btn:disabled{opacity:.5;cursor:not-allowed}
+.login-err{color:var(--danger);font-size:12.5px;margin-top:10px;min-height:18px}
 
-/* ── LOGIN ──────────────────────────────────────────── */
-#login-screen {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--blue-900) 0%, var(--blue-700) 50%, var(--blue-500) 100%);
-}
-#login-screen.hidden { display: none; }
+/* APP */
+#app{display:none;min-height:100vh;flex-direction:column}
+#app.show{display:flex}
 
-.login-card {
-  background: var(--white);
-  border-radius: 20px;
-  padding: 48px 44px;
-  width: 380px;
-  box-shadow: var(--shadow-lg);
-  text-align: center;
-}
-.login-logo {
-  width: 56px; height: 56px;
-  background: linear-gradient(135deg, var(--blue-500), var(--blue-300));
-  border-radius: 16px;
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 20px;
-  box-shadow: 0 4px 14px rgba(35,86,212,0.35);
-}
-.login-logo svg { width: 28px; height: 28px; fill: white; }
-.login-title { font-size: 22px; font-weight: 700; color: var(--gray-800); margin-bottom: 6px; }
-.login-sub { font-size: 13.5px; color: var(--gray-500); margin-bottom: 32px; }
+/* HEADER */
+.header{background:var(--white);border-bottom:1px solid var(--gray-200);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 0 var(--gray-200)}
+.h-left{display:flex;align-items:center;gap:12px}
+.h-logo{width:36px;height:36px;background:linear-gradient(135deg,var(--blue-500),var(--blue-300));border-radius:10px;display:flex;align-items:center;justify-content:center}
+.h-logo svg{width:18px;height:18px;fill:white}
+.h-name{font-size:16px;font-weight:700;color:var(--gray-800);letter-spacing:-.3px}
+.h-badge{font-size:11px;background:var(--blue-100);color:var(--blue-600);padding:2px 8px;border-radius:20px;font-weight:500}
+.h-right{display:flex;align-items:center;gap:10px}
+.api-chip{display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:24px;font-size:12px}
+.api-chip input{background:none;border:none;outline:none;font-size:12px;color:var(--gray-700);width:260px;font-family:monospace}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:.3s}
+.dot.g{background:var(--success)}.dot.r{background:var(--danger)}.dot.y{background:var(--warn)}
+.logout-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius-sm);background:none;border:1.5px solid var(--gray-200);color:var(--gray-500);font-size:13px;cursor:pointer;transition:.15s}
+.logout-btn:hover{border-color:var(--gray-300);color:var(--gray-700)}
+.logout-btn svg{width:15px;height:15px}
 
-.login-input-wrap { position: relative; margin-bottom: 16px; }
-.login-input-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; stroke: var(--gray-400); fill: none; }
-.login-input {
-  width: 100%; padding: 11px 14px 11px 42px;
-  border: 1.5px solid var(--gray-200);
-  border-radius: var(--radius-sm);
-  font-size: 14px; color: var(--gray-800);
-  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-  background: var(--gray-50);
-}
-.login-input:focus { border-color: var(--blue-400); box-shadow: 0 0 0 3px rgba(65,120,240,0.12); background: white; }
-.login-input::placeholder { color: var(--gray-400); }
+/* BODY */
+.body-wrap{display:flex;flex:1}
 
-.login-btn {
-  width: 100%; padding: 12px;
-  background: linear-gradient(135deg, var(--blue-500), var(--blue-400));
-  color: white; border: none; border-radius: var(--radius-sm);
-  font-size: 14.5px; font-weight: 600; cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
-  box-shadow: 0 3px 10px rgba(35,86,212,0.3);
-}
-.login-btn:hover { opacity: 0.92; }
-.login-btn:active { transform: scale(0.99); }
-.login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.login-err { color: var(--danger); font-size: 12.5px; margin-top: 10px; min-height: 18px; }
+/* SIDEBAR */
+.sidebar{width:228px;flex-shrink:0;background:var(--white);border-right:1px solid var(--gray-200);padding:20px 12px;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto}
+.nav-sec-lbl{font-size:10.5px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--gray-400);padding:0 10px;margin-bottom:6px;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);color:var(--gray-600);cursor:pointer;transition:.12s;font-size:13.5px;font-weight:500;margin-bottom:2px;user-select:none}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+.nav-item:hover{background:var(--blue-50);color:var(--blue-600)}
+.nav-item.active{background:var(--blue-50);color:var(--blue-600);font-weight:600}
+.nav-count{margin-left:auto;font-size:11px;font-weight:600;background:var(--blue-100);color:var(--blue-600);padding:1px 7px;border-radius:10px}
 
-/* ── APP SHELL ──────────────────────────────────────── */
-#app { display: none; min-height: 100vh; flex-direction: column; }
-#app.show { display: flex; }
+/* MAIN */
+.main{flex:1;padding:28px 36px;max-width:1080px}
+.page{display:none}.page.active{display:block}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
+.topbar-title{font-size:22px;font-weight:700;color:var(--gray-800);letter-spacing:-.4px}
+.topbar-sub{font-size:13px;color:var(--gray-500);margin-top:3px}
 
-/* Header */
-.header {
-  background: var(--white);
-  border-bottom: 1px solid var(--gray-200);
-  padding: 0 32px;
-  height: 60px;
-  display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 50;
-  box-shadow: 0 1px 0 var(--gray-200);
-}
-.header-left { display: flex; align-items: center; gap: 12px; }
-.h-logo {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--blue-500), var(--blue-300));
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-}
-.h-logo svg { width: 18px; height: 18px; fill: white; }
-.h-name { font-size: 16px; font-weight: 700; color: var(--gray-800); letter-spacing: -0.3px; }
-.h-badge { font-size: 11px; background: var(--blue-100); color: var(--blue-600); padding: 2px 8px; border-radius: 20px; font-weight: 500; }
-.header-right { display: flex; align-items: center; gap: 10px; }
-.api-chip {
-  display: flex; align-items: center; gap: 7px;
-  padding: 6px 12px;
-  background: var(--gray-100); border: 1px solid var(--gray-200);
-  border-radius: 20px; font-size: 12px; color: var(--gray-500);
-}
-.api-chip input {
-  background: none; border: none; outline: none;
-  font-size: 12px; color: var(--gray-700);
-  width: 240px; font-family: monospace;
-}
-.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-300); flex-shrink: 0; }
-.dot.green { background: var(--success); }
-.dot.red   { background: var(--danger); }
-.dot.yellow{ background: var(--warn); }
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;cursor:pointer;border:none;transition:.15s;white-space:nowrap;line-height:1}
+.btn svg{width:15px;height:15px;flex-shrink:0}
+.btn-primary{background:linear-gradient(135deg,var(--blue-500),var(--blue-400));color:white;box-shadow:0 2px 8px rgba(35,86,212,.25)}
+.btn-primary:hover{box-shadow:0 4px 14px rgba(35,86,212,.35);opacity:.95}
+.btn-outline{background:white;color:var(--gray-600);border:1.5px solid var(--gray-200)}
+.btn-outline:hover{border-color:var(--blue-300);color:var(--blue-600);background:var(--blue-50)}
+.btn-danger{background:var(--danger-bg);color:var(--danger);border:1.5px solid #fecaca}
+.btn-danger:hover{background:#fee2e2}
+.btn-sm{padding:6px 12px;font-size:12.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 
-.logout-btn {
-  display: flex; align-items: center; gap: 6px;
-  padding: 7px 14px; border-radius: var(--radius-sm);
-  background: none; border: 1.5px solid var(--gray-200);
-  color: var(--gray-500); font-size: 13px; cursor: pointer;
-  transition: 0.15s;
-}
-.logout-btn:hover { border-color: var(--gray-300); color: var(--gray-700); }
-.logout-btn svg { width: 15px; height: 15px; }
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px}
+.stat-card{background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+.stat-lbl{font-size:12px;color:var(--gray-500);font-weight:500;margin-bottom:6px}
+.stat-val{font-size:28px;font-weight:700;color:var(--blue-600);line-height:1}
+.stat-sub{font-size:12px;color:var(--gray-400);margin-top:4px}
 
-/* Body */
-.body-wrap { display: flex; flex: 1; }
+/* SCREENS */
+.screens-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.screen-card{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);transition:.15s}
+.screen-card:hover{box-shadow:var(--shadow-md);border-color:var(--blue-200)}
+.screen-preview{height:120px;background:linear-gradient(135deg,var(--blue-900),var(--blue-700));display:flex;align-items:center;justify-content:center;position:relative}
+.screen-preview svg{width:42px;height:42px;opacity:.2;fill:white}
+.scr-badge{position:absolute;top:10px;left:10px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px}
+.scr-badge.on{background:rgba(22,163,74,.85);color:white}
+.scr-badge.off{background:rgba(255,255,255,.12);color:rgba(255,255,255,.65)}
+.scr-num{position:absolute;bottom:10px;right:12px;font-size:20px;font-weight:800;color:rgba(255,255,255,.1);font-family:monospace}
+.screen-body{padding:14px 16px}
+.screen-name{font-size:14.5px;font-weight:700;color:var(--gray-800);margin-bottom:2px}
+.screen-meta{font-size:12px;color:var(--gray-500);margin-bottom:10px}
+.screen-pl{display:flex;align-items:center;gap:6px;font-size:12px;border-radius:var(--radius-xs);padding:5px 10px;margin-bottom:12px;font-weight:500}
+.screen-pl.has{color:var(--blue-600);background:var(--blue-50);border:1px solid var(--blue-100)}
+.screen-pl.none{color:var(--gray-400);background:var(--gray-100);border:1px solid var(--gray-200)}
+.screen-pl svg{width:13px;height:13px;fill:currentColor}
+.screen-actions{display:flex;gap:6px;flex-wrap:wrap}
 
-/* Sidebar */
-.sidebar {
-  width: 230px; flex-shrink: 0;
-  background: var(--white);
-  border-right: 1px solid var(--gray-200);
-  padding: 20px 12px;
-  position: sticky; top: 60px; height: calc(100vh - 60px);
-  overflow-y: auto;
-}
-.nav-section { margin-bottom: 24px; }
-.nav-section-label {
-  font-size: 10.5px; font-weight: 600; letter-spacing: 0.7px;
-  text-transform: uppercase; color: var(--gray-400);
-  padding: 0 10px; margin-bottom: 6px;
-}
-.nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border-radius: var(--radius-sm);
-  color: var(--gray-600); cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-  font-size: 13.5px; font-weight: 500;
-  margin-bottom: 2px; user-select: none;
-}
-.nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
-.nav-item:hover { background: var(--blue-50); color: var(--blue-600); }
-.nav-item.active { background: var(--blue-50); color: var(--blue-600); font-weight: 600; }
-.nav-item.active svg { stroke: var(--blue-500); }
-.nav-count {
-  margin-left: auto; font-size: 11px; font-weight: 600;
-  background: var(--blue-100); color: var(--blue-600);
-  padding: 1px 7px; border-radius: 10px;
-}
+/* PLAYLISTS */
+.pl-list{display:flex;flex-direction:column;gap:10px}
+.pl-card{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:16px 18px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);transition:.15s}
+.pl-card:hover{box-shadow:var(--shadow-md);border-color:var(--blue-200)}
+.pl-icon{width:46px;height:46px;flex-shrink:0;background:linear-gradient(135deg,var(--blue-500),var(--blue-300));border-radius:12px;display:flex;align-items:center;justify-content:center}
+.pl-icon svg{width:20px;height:20px;fill:white}
+.pl-info{flex:1;min-width:0}
+.pl-name{font-size:14.5px;font-weight:700;color:var(--gray-800)}
+.pl-meta{font-size:12px;color:var(--gray-500);margin-top:2px}
+.pl-actions{display:flex;gap:8px;align-items:center}
 
-/* Main content */
-.main { flex: 1; padding: 28px 36px; max-width: 1100px; }
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600}
+.badge-green{background:var(--success-bg);color:var(--success)}
+.badge-gray{background:var(--gray-100);color:var(--gray-500)}
 
-/* Page */
-.page { display: none; }
-.page.active { display: block; }
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(10,22,40,.5);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.overlay.open{display:flex}
+.modal{background:white;border-radius:18px;padding:28px;width:540px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.modal-title{font-size:18px;font-weight:700;color:var(--gray-800)}
+.modal-x{background:none;border:none;cursor:pointer;color:var(--gray-400);padding:4px;border-radius:6px;display:flex}
+.modal-x:hover{color:var(--gray-700);background:var(--gray-100)}
+.modal-x svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:20px;border-top:1px solid var(--gray-100)}
 
-/* Topbar */
-.topbar {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  margin-bottom: 24px;
-}
-.topbar-title { font-size: 22px; font-weight: 700; color: var(--gray-800); letter-spacing: -0.4px; }
-.topbar-sub { font-size: 13px; color: var(--gray-500); margin-top: 3px; }
+/* FORM */
+.fg{margin-bottom:18px}
+.fl{display:block;font-size:12.5px;font-weight:600;color:var(--gray-600);margin-bottom:7px}
+.fi,.fsel{width:100%;padding:9px 13px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:14px;color:var(--gray-800);background:white;outline:none;transition:.15s}
+.fi:focus,.fsel:focus{border-color:var(--blue-400);box-shadow:0 0 0 3px rgba(65,120,240,.1)}
+.fi::placeholder{color:var(--gray-300)}
 
-/* Buttons */
-.btn {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 9px 18px; border-radius: var(--radius-sm);
-  font-size: 13.5px; font-weight: 600; cursor: pointer;
-  border: none; transition: 0.15s; white-space: nowrap; line-height: 1;
-}
-.btn svg { width: 15px; height: 15px; flex-shrink: 0; }
-.btn-primary {
-  background: linear-gradient(135deg, var(--blue-500), var(--blue-400));
-  color: white; box-shadow: 0 2px 8px rgba(35,86,212,0.25);
-}
-.btn-primary:hover { box-shadow: 0 4px 14px rgba(35,86,212,0.35); opacity: 0.95; }
-.btn-outline { background: white; color: var(--gray-600); border: 1.5px solid var(--gray-200); }
-.btn-outline:hover { border-color: var(--blue-300); color: var(--blue-600); background: var(--blue-50); }
-.btn-danger { background: var(--danger-bg); color: var(--danger); border: 1.5px solid #fecaca; }
-.btn-danger:hover { background: #fee2e2; }
-.btn-sm { padding: 6px 12px; font-size: 12.5px; }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* MEDIA ENTRIES */
+.me-hdr{display:grid;grid-template-columns:1fr 80px 34px;gap:8px;margin-bottom:6px}
+.me-hdr span{font-size:11px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px}
+.media-entry{display:grid;grid-template-columns:1fr 80px 34px;gap:8px;align-items:center;margin-bottom:8px}
+.media-entry .fi{font-size:13px;padding:8px 11px}
+.del-btn{background:none;border:1.5px solid var(--gray-200);color:var(--gray-400);cursor:pointer;font-size:16px;width:34px;height:36px;border-radius:var(--radius-xs);display:flex;align-items:center;justify-content:center;transition:.12s}
+.del-btn:hover{border-color:#fca5a5;color:var(--danger);background:var(--danger-bg)}
 
-/* Stats row */
-.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 14px; margin-bottom: 28px; }
-.stat-card {
-  background: white; border: 1px solid var(--gray-200);
-  border-radius: var(--radius); padding: 18px 20px;
-  box-shadow: var(--shadow);
-}
-.stat-label { font-size: 12px; color: var(--gray-500); font-weight: 500; margin-bottom: 6px; }
-.stat-val { font-size: 28px; font-weight: 700; color: var(--blue-600); line-height: 1; }
-.stat-sub { font-size: 12px; color: var(--gray-400); margin-top: 4px; }
+/* URL BOX */
+.url-box{background:var(--blue-50);border:1.5px solid var(--blue-200);border-radius:var(--radius-sm);padding:12px 16px;margin-top:10px}
+.url-box code{font-size:12px;color:var(--blue-700);font-family:monospace;word-break:break-all;line-height:1.6}
+.url-acts{display:flex;gap:8px;margin-top:10px}
 
-/* Screens grid */
-.screens-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 16px; }
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--gray-800);color:white;padding:11px 18px;border-radius:var(--radius-sm);font-size:13.5px;z-index:999;transform:translateY(10px);opacity:0;transition:.2s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.25);max-width:340px}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.s{background:var(--success)}.toast.e{background:var(--danger)}
 
-.screen-card {
-  background: white; border: 1.5px solid var(--gray-200);
-  border-radius: var(--radius); overflow: hidden;
-  box-shadow: var(--shadow); transition: box-shadow 0.15s, border-color 0.15s;
-}
-.screen-card:hover { box-shadow: var(--shadow-md); border-color: var(--blue-200); }
+/* EMPTY */
+.empty{text-align:center;padding:60px 24px;color:var(--gray-400)}
+.empty svg{width:44px;height:44px;margin:0 auto 14px;display:block;opacity:.3;stroke:currentColor;fill:none;stroke-width:1.2}
+.empty p{font-size:14px;line-height:1.7}
 
-.screen-preview {
-  height: 120px;
-  background: linear-gradient(135deg, var(--blue-900) 0%, var(--blue-700) 100%);
-  display: flex; align-items: center; justify-content: center;
-  position: relative;
-}
-.screen-preview svg { width: 42px; height: 42px; opacity: 0.25; fill: white; }
-.screen-badge {
-  position: absolute; top: 10px; left: 10px;
-  font-size: 10.5px; font-weight: 600; padding: 3px 9px;
-  border-radius: 20px;
-}
-.screen-badge.active { background: rgba(22,163,74,0.9); color: white; }
-.screen-badge.inactive { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); }
-.screen-num {
-  position: absolute; bottom: 10px; right: 12px;
-  font-size: 20px; font-weight: 800; color: rgba(255,255,255,0.12);
-  font-family: monospace;
-}
+/* SPINNER */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
 
-.screen-body { padding: 14px 16px; }
-.screen-name { font-size: 14.5px; font-weight: 700; color: var(--gray-800); margin-bottom: 2px; }
-.screen-meta { font-size: 12px; color: var(--gray-500); margin-bottom: 12px; }
-.screen-pl {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--blue-600);
-  background: var(--blue-50); border: 1px solid var(--blue-100);
-  border-radius: var(--radius-xs); padding: 4px 10px;
-  margin-bottom: 12px; font-weight: 500;
-}
-.screen-pl svg { width: 13px; height: 13px; }
-.screen-pl.none { color: var(--gray-400); background: var(--gray-100); border-color: var(--gray-200); }
-.screen-actions { display: flex; gap: 6px; }
-
-/* Playlist list */
-.pl-list { display: flex; flex-direction: column; gap: 10px; }
-.pl-card {
-  background: white; border: 1.5px solid var(--gray-200);
-  border-radius: var(--radius); padding: 16px 18px;
-  display: flex; align-items: center; gap: 14px;
-  box-shadow: var(--shadow); transition: box-shadow 0.15s, border-color 0.15s;
-}
-.pl-card:hover { box-shadow: var(--shadow-md); border-color: var(--blue-200); }
-.pl-icon {
-  width: 46px; height: 46px; flex-shrink: 0;
-  background: linear-gradient(135deg, var(--blue-500), var(--blue-300));
-  border-radius: 12px; display: flex; align-items: center; justify-content: center;
-}
-.pl-icon svg { width: 20px; height: 20px; fill: white; }
-.pl-info { flex: 1; min-width: 0; }
-.pl-name { font-size: 14.5px; font-weight: 700; color: var(--gray-800); }
-.pl-meta { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
-.pl-actions { display: flex; gap: 8px; align-items: center; }
-
-/* Badge */
-.badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 600; }
-.badge-blue { background: var(--blue-100); color: var(--blue-600); }
-.badge-green { background: var(--success-bg); color: var(--success); }
-.badge-gray { background: var(--gray-100); color: var(--gray-500); }
-
-/* Modal */
-.overlay { display: none; position: fixed; inset: 0; background: rgba(15,28,60,0.45); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-.overlay.open { display: flex; }
-.modal {
-  background: white; border-radius: 18px; padding: 28px;
-  width: 540px; max-width: 95vw; max-height: 90vh;
-  overflow-y: auto; box-shadow: var(--shadow-lg);
-}
-.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
-.modal-title { font-size: 18px; font-weight: 700; color: var(--gray-800); }
-.modal-close { background: none; border: none; cursor: pointer; color: var(--gray-400); padding: 4px; border-radius: 6px; }
-.modal-close:hover { color: var(--gray-700); background: var(--gray-100); }
-.modal-close svg { width: 20px; height: 20px; }
-.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--gray-100); }
-
-/* Form */
-.fg { margin-bottom: 18px; }
-.fl { display: block; font-size: 12.5px; font-weight: 600; color: var(--gray-600); margin-bottom: 7px; }
-.fi, .fsel {
-  width: 100%; padding: 9px 13px;
-  border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
-  font-size: 14px; color: var(--gray-800); background: white;
-  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
-}
-.fi:focus, .fsel:focus { border-color: var(--blue-400); box-shadow: 0 0 0 3px rgba(65,120,240,0.1); }
-.fi::placeholder { color: var(--gray-300); }
-.fsel option { background: white; }
-
-/* Media entries */
-.media-header-row { display: grid; grid-template-columns: 1fr 80px 34px; gap: 8px; margin-bottom: 6px; }
-.media-header-row span { font-size: 11.5px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; }
-.media-entry { display: grid; grid-template-columns: 1fr 80px 34px; gap: 8px; align-items: center; margin-bottom: 8px; }
-.media-entry .fi { font-size: 13px; padding: 8px 11px; }
-.del-btn { background: none; border: 1.5px solid var(--gray-200); color: var(--gray-400); cursor: pointer; font-size: 16px; width: 34px; height: 36px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; transition: 0.12s; }
-.del-btn:hover { border-color: #fca5a5; color: var(--danger); background: var(--danger-bg); }
-
-/* URL modal */
-.url-display {
-  background: var(--blue-50); border: 1.5px solid var(--blue-200);
-  border-radius: var(--radius-sm); padding: 12px 16px; margin-top: 10px;
-}
-.url-display code { font-size: 12px; color: var(--blue-700); font-family: monospace; word-break: break-all; line-height: 1.6; }
-.url-actions { display: flex; gap: 8px; margin-top: 10px; }
-
-/* Toast */
-.toast {
-  position: fixed; bottom: 24px; right: 24px;
-  background: var(--gray-800); color: white;
-  padding: 11px 18px; border-radius: var(--radius-sm);
-  font-size: 13.5px; z-index: 999;
-  transform: translateY(10px); opacity: 0; transition: 0.2s;
-  pointer-events: none; display: flex; align-items: center; gap: 8px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.25); max-width: 340px;
-}
-.toast.show { opacity: 1; transform: translateY(0); }
-.toast.success { background: var(--success); }
-.toast.error   { background: var(--danger); }
-
-/* Empty */
-.empty { text-align: center; padding: 60px 24px; color: var(--gray-400); }
-.empty svg { width: 44px; height: 44px; margin: 0 auto 14px; display: block; opacity: 0.35; }
-.empty p { font-size: 14px; line-height: 1.7; }
-
-/* Spinner */
-.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: sp 0.7s linear infinite; }
-@keyframes sp { to { transform: rotate(360deg); } }
-
-/* Kurulum */
-.setup-card { background: white; border: 1.5px solid var(--gray-200); border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow); }
-.step-row { display: flex; gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--gray-100); }
-.step-row:last-child { border-bottom: none; }
-.step-num { width: 32px; height: 32px; background: linear-gradient(135deg,var(--blue-500),var(--blue-300)); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-.step-body h3 { font-size: 14.5px; font-weight: 700; color: var(--gray-800); margin-bottom: 7px; }
-.step-body p, .step-body li { font-size: 13.5px; color: var(--gray-600); line-height: 1.7; }
-.step-body ul { padding-left: 18px; margin-top: 5px; }
-.step-body code { background: var(--blue-50); color: var(--blue-700); padding: 1px 7px; border-radius: 4px; font-size: 12.5px; font-family: monospace; border: 1px solid var(--blue-100); }
+/* SETUP */
+.setup-card{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow)}
+.step-row{display:flex;gap:18px;padding:18px 0;border-bottom:1px solid var(--gray-100)}
+.step-row:last-child{border-bottom:none}
+.step-num{width:32px;height:32px;background:linear-gradient(135deg,var(--blue-500),var(--blue-300));color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;margin-top:1px}
+.step-body h3{font-size:14.5px;font-weight:700;color:var(--gray-800);margin-bottom:7px}
+.step-body p,.step-body li{font-size:13.5px;color:var(--gray-600);line-height:1.7}
+.step-body ul{padding-left:18px;margin-top:5px}
+.step-body code{background:var(--blue-50);color:var(--blue-700);padding:1px 7px;border-radius:4px;font-size:12.5px;font-family:monospace;border:1px solid var(--blue-100)}
 </style>
 </head>
 <body>
 
-<!-- ── LOGIN ─────────────────────────────────────────── -->
+<!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">
@@ -396,368 +194,297 @@ body {
     </div>
     <div class="login-title">SignagePanel</div>
     <div class="login-sub">Dijital Tabela Yönetim Sistemi</div>
-
-    <div class="login-input-wrap">
+    <div class="login-iw">
       <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor"/></svg>
-      <input class="login-input" id="pass-input" type="password" placeholder="Şifre" onkeydown="if(event.key==='Enter')doLogin()">
+      <input id="pass-inp" type="password" placeholder="Şifre" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-iw">
+      <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor"/></svg>
+      <input id="api-inp-login" type="url" placeholder="Apps Script URL (https://script.google.com/…)" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="login-btn" id="login-btn" onclick="doLogin()">Giriş Yap</button>
     <div class="login-err" id="login-err"></div>
   </div>
 </div>
 
-<!-- ── APP ───────────────────────────────────────────── -->
+<!-- APP -->
 <div id="app">
-
-  <!-- Header -->
   <header class="header">
-    <div class="header-left">
-      <div class="h-logo">
-        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
-      </div>
+    <div class="h-left">
+      <div class="h-logo"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/></svg></div>
       <span class="h-name">SignagePanel</span>
-      <span class="h-badge">v2.0</span>
+      <span class="h-badge">v3.0</span>
     </div>
-    <div class="header-right">
+    <div class="h-right">
       <div class="api-chip">
         <div class="dot" id="api-dot"></div>
-        <input id="api-input" placeholder="Apps Script URL yapıştırın…" oninput="onApiInput()">
+        <input id="api-inp" placeholder="Apps Script URL…" oninput="onApiChange()" readonly style="cursor:default;opacity:.7">
       </div>
       <button class="logout-btn" onclick="logout()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke="currentColor" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Çıkış
       </button>
     </div>
   </header>
 
   <div class="body-wrap">
-
-    <!-- Sidebar -->
     <aside class="sidebar">
-      <div class="nav-section">
-        <div class="nav-section-label">Yönetim</div>
-        <div class="nav-item active" data-page="screens" onclick="nav(this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          Ekranlar
-          <span class="nav-count" id="nav-screens-count">0</span>
-        </div>
-        <div class="nav-item" data-page="playlists" onclick="nav(this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/><polygon points="17,12 17,18 22,15" fill="currentColor" stroke="none"/></svg>
-          Playlist'ler
-          <span class="nav-count" id="nav-pl-count">0</span>
-        </div>
+      <div class="nav-sec-lbl">Yönetim</div>
+      <div class="nav-item active" data-page="screens" onclick="nav(this)">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Ekranlar <span class="nav-count" id="nc-s">0</span>
       </div>
-      <div class="nav-section">
-        <div class="nav-section-label">Yardım</div>
-        <div class="nav-item" data-page="setup" onclick="nav(this)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M4.22 4.22l2.12 2.12m11.32 11.32 2.12 2.12M2 12h3m14 0h3M4.22 19.78l2.12-2.12m11.32-11.32 2.12-2.12"/></svg>
-          Kurulum
-        </div>
+      <div class="nav-item" data-page="playlists" onclick="nav(this)">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/><polygon points="17,12 17,18 22,15" fill="currentColor" stroke="none"/></svg>
+        Playlist'ler <span class="nav-count" id="nc-p">0</span>
+      </div>
+      <div class="nav-sec-lbl" style="margin-top:16px">Yardım</div>
+      <div class="nav-item" data-page="setup" onclick="nav(this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M4.22 4.22l2.12 2.12m11.32 11.32 2.12 2.12M2 12h3m14 0h3M4.22 19.78l2.12-2.12m11.32-11.32 2.12-2.12"/></svg>
+        Kurulum
       </div>
     </aside>
 
-    <!-- Main -->
     <main class="main">
-
       <!-- EKRANLAR -->
       <div id="page-screens" class="page active">
         <div class="topbar">
-          <div>
-            <div class="topbar-title">Ekranlar</div>
-            <div class="topbar-sub">Televizyonlarınızı ve yayın atamalarını yönetin</div>
-          </div>
+          <div><div class="topbar-title">Ekranlar</div><div class="topbar-sub">Televizyonlarınızı ve yayın atamalarını yönetin</div></div>
           <button class="btn btn-primary" onclick="openAddScreen()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg viewBox="0 0 24 24" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Ekran Ekle
           </button>
         </div>
         <div class="stats-row">
-          <div class="stat-card">
-            <div class="stat-label">Toplam Ekran</div>
-            <div class="stat-val" id="stat-screens">—</div>
-            <div class="stat-sub">televizyon</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Aktif Yayın</div>
-            <div class="stat-val" id="stat-active">—</div>
-            <div class="stat-sub">playlist atanmış</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Playlist</div>
-            <div class="stat-val" id="stat-pl">—</div>
-            <div class="stat-sub">toplam</div>
-          </div>
+          <div class="stat-card"><div class="stat-lbl">Toplam Ekran</div><div class="stat-val" id="st-s">—</div><div class="stat-sub">televizyon</div></div>
+          <div class="stat-card"><div class="stat-lbl">Aktif Yayın</div><div class="stat-val" id="st-a">—</div><div class="stat-sub">playlist atanmış</div></div>
+          <div class="stat-card"><div class="stat-lbl">Playlist</div><div class="stat-val" id="st-p">—</div><div class="stat-sub">toplam</div></div>
         </div>
         <div id="screens-grid" class="screens-grid">
-          <div class="empty" style="grid-column:1/-1">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
-            <p>Yükleniyor…</p>
-          </div>
+          <div class="empty" style="grid-column:1/-1"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/></svg><p>Yükleniyor…</p></div>
         </div>
       </div>
 
       <!-- PLAYLİSTLER -->
       <div id="page-playlists" class="page">
         <div class="topbar">
-          <div>
-            <div class="topbar-title">Playlist'ler</div>
-            <div class="topbar-sub">Video ve görsel içerik listeleri oluşturun</div>
-          </div>
-          <button class="btn btn-primary" onclick="openAddPlaylist()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <div><div class="topbar-title">Playlist'ler</div><div class="topbar-sub">Video ve görsel içerik listelerinizi yönetin</div></div>
+          <button class="btn btn-primary" onclick="openAddPl()">
+            <svg viewBox="0 0 24 24" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Playlist Ekle
           </button>
         </div>
-        <div id="pl-list" class="pl-list">
-          <div class="empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/></svg>
-            <p>Yükleniyor…</p>
-          </div>
-        </div>
+        <div id="pl-list" class="pl-list"><div class="empty"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/></svg><p>Yükleniyor…</p></div></div>
       </div>
 
       <!-- KURULUM -->
       <div id="page-setup" class="page">
         <div class="topbar"><div class="topbar-title">Kurulum Rehberi</div></div>
         <div class="setup-card">
-          <div class="step-row"><div class="step-num">1</div><div class="step-body"><h3>Google Sheet'i hazırlayın</h3><p>Yeni bir Google Sheets açın. URL'deki <code>/d/XXXX/edit</code> kısmındaki <code>XXXX</code> sizin Sheet ID'nizdir. <code>Code.gs</code> içinde bu ID zaten girilmiş durumda.</p></div></div>
-          <div class="step-row"><div class="step-num">2</div><div class="step-body"><h3>Apps Script'i kurun</h3><ul><li>Sheet → <strong>Uzantılar → Apps Script</strong></li><li><code>Code.gs</code> içeriğini yapıştırın</li><li>Fonksiyon seçiciden <code>initSheets</code> seçin → ▶ Çalıştırın</li></ul></div></div>
-          <div class="step-row"><div class="step-num">3</div><div class="step-body"><h3>Web uygulaması olarak dağıtın</h3><ul><li>Dağıt → Yeni dağıtım → Web uygulaması</li><li>Farklı çalıştır: <code>Ben</code> | Erişim: <code>Herkes</code></li><li>URL'i kopyalayın</li></ul></div></div>
-          <div class="step-row"><div class="step-num">4</div><div class="step-body"><h3>URL'i üst bara yapıştırın</h3><p>Sayfanın üst kısmındaki URL kutusuna Apps Script URL'ini yapıştırın. Yeşil nokta görünmeli.</p></div></div>
-          <div class="step-row"><div class="step-num">5</div><div class="step-body"><h3>SharePoint video linki</h3><p>SharePoint'te videoya sağ tıklayın → <strong>Bağlantıyı kopyala</strong>. Bu linki playlist'e yapıştırın. Sistem <code>?download=1</code> ekleyerek oynatılabilir formata çevirir.</p></div></div>
-          <div class="step-row"><div class="step-num">6</div><div class="step-body"><h3>TV URL Başlatıcısına girin</h3><p>Ekran kartındaki <strong>URL Kopyala</strong> butonuna tıklayın. Çıkan linki Samsung TV → URL Başlatıcı Ayarları'na yapıştırın. TV açıldığında otomatik oynatmaya başlar.</p></div></div>
+          <div class="step-row"><div class="step-num">1</div><div class="step-body"><h3>Google Sheet'i hazırlayın</h3><p>Sheet ID zaten <code>Code.gs</code> içinde tanımlı. Sadece Apps Script'i açmanız yeterli: Sheet → <strong>Uzantılar → Apps Script</strong></p></div></div>
+          <div class="step-row"><div class="step-num">2</div><div class="step-body"><h3>Code.gs'i yapıştırın ve initSheets çalıştırın</h3><ul><li>Eski kodu silin, yeni <code>Code.gs</code>'i yapıştırın</li><li>Fonksiyon: <code>initSheets</code> → ▶ Çalıştır (Google izni isteyecek)</li></ul></div></div>
+          <div class="step-row"><div class="step-num">3</div><div class="step-body"><h3>Yeniden dağıtın</h3><ul><li>Dağıt → <strong>Dağıtımları yönet</strong> → Kalem ikonu → Sürüm: <strong>Yeni sürüm</strong> → Dağıt</li><li>Ya da: Dağıt → Yeni dağıtım → Web uygulaması → Erişim: Herkes</li></ul></div></div>
+          <div class="step-row"><div class="step-num">4</div><div class="step-body"><h3>Giriş ekranında URL'i girin</h3><p>Çıkış yapıp giriş ekranına dönün. <strong>Şifre</strong> + <strong>Apps Script URL</strong>'ini girin.</p></div></div>
+          <div class="step-row"><div class="step-num">5</div><div class="step-body"><h3>Samsung TV'ye URL yapıştırın</h3><p>Ekran kartındaki <strong>URL Kopyala</strong> butonuna basın. TV → URL Başlatıcı → Web Uygulamasını Yükleme alanına yapıştırın.</p></div></div>
         </div>
       </div>
-
     </main>
   </div>
 </div>
 
 <!-- EKRAN MODAL -->
-<div id="modal-screen" class="overlay">
+<div id="m-screen" class="overlay">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="ms-title">Yeni Ekran</div>
-      <button class="modal-close" onclick="closeModal('modal-screen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="modal-hdr">
+      <div class="modal-title" id="ms-t">Yeni Ekran</div>
+      <button class="modal-x" onclick="cm('m-screen')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <div class="fg"><label class="fl">Ekran adı *</label><input class="fi" id="s-name" placeholder="Örn: Lobi TV, Toplantı Odası"></div>
+    <div class="fg"><label class="fl">Ekran adı *</label><input class="fi" id="s-name" placeholder="Örn: Lobi TV"></div>
     <div class="fg"><label class="fl">Konum</label><input class="fi" id="s-loc" placeholder="Örn: 2. Kat, Departman A"></div>
-    <div class="fg"><label class="fl">Playlist</label><select class="fsel" id="s-pl"><option value="">— Playlist seçin —</option></select></div>
+    <div class="fg"><label class="fl">Playlist</label><select class="fsel" id="s-pl"><option value="">— Seçin —</option></select></div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('modal-screen')">İptal</button>
+      <button class="btn btn-outline" onclick="cm('m-screen')">İptal</button>
       <button class="btn btn-primary" id="s-save" onclick="saveScreen()">Kaydet</button>
     </div>
   </div>
 </div>
 
 <!-- PLAYLİST MODAL -->
-<div id="modal-pl" class="overlay">
+<div id="m-pl" class="overlay">
   <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="mp-title">Yeni Playlist</div>
-      <button class="modal-close" onclick="closeModal('modal-pl')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="modal-hdr">
+      <div class="modal-title" id="mp-t">Yeni Playlist</div>
+      <button class="modal-x" onclick="cm('m-pl')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <div class="fg"><label class="fl">Playlist adı *</label><input class="fi" id="p-name" placeholder="Örn: Ana Duyurular, Departman Haberleri"></div>
+    <div class="fg"><label class="fl">Playlist adı *</label><input class="fi" id="p-name" placeholder="Örn: Ana Duyurular"></div>
     <div class="fg">
       <label class="fl">İçerikler</label>
-      <div class="media-header-row"><span>URL (SharePoint veya direkt link)</span><span style="text-align:center">Süre (sn)</span><span></span></div>
+      <div class="me-hdr"><span>URL (SharePoint veya direkt link)</span><span style="text-align:center">Süre (sn)</span><span></span></div>
       <div id="media-list"></div>
       <button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="addEntry()">+ İçerik Ekle</button>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('modal-pl')">İptal</button>
-      <button class="btn btn-primary" id="p-save" onclick="savePlaylist()">Kaydet</button>
+      <button class="btn btn-outline" onclick="cm('m-pl')">İptal</button>
+      <button class="btn btn-primary" id="p-save" onclick="savePl()">Kaydet</button>
     </div>
   </div>
 </div>
 
 <!-- URL MODAL -->
-<div id="modal-url" class="overlay">
+<div id="m-url" class="overlay">
   <div class="modal" style="width:500px">
-    <div class="modal-header">
+    <div class="modal-hdr">
       <div class="modal-title">TV Player URL'i</div>
-      <button class="modal-close" onclick="closeModal('modal-url')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <button class="modal-x" onclick="cm('m-url')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <p style="font-size:13.5px;color:var(--gray-500);line-height:1.7">Bu URL'i Samsung TV'de <strong style="color:var(--gray-700)">URL Başlatıcı Ayarları → Web Uygulamasını Yükleme</strong> alanına yapıştırın. TV açıldığında otomatik oynatmaya başlar.</p>
-    <div class="url-display"><code id="url-txt"></code></div>
-    <div class="url-actions">
+    <p style="font-size:13.5px;color:var(--gray-500);line-height:1.7">Samsung TV'de <strong style="color:var(--gray-700)">URL Başlatıcı → Web Uygulamasını Yükleme</strong> alanına yapıştırın.</p>
+    <div class="url-box"><code id="url-txt"></code></div>
+    <div class="url-acts">
       <button class="btn btn-primary btn-sm" onclick="copyUrl()">Kopyala</button>
-      <button class="btn btn-outline btn-sm" onclick="window.open(currentUrl,'_blank')">Tarayıcıda Aç ↗</button>
+      <button class="btn btn-outline btn-sm" onclick="window.open(CUR_URL,'_blank')">Tarayıcıda Aç ↗</button>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('modal-url')">Kapat</button>
-    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="cm('m-url')">Kapat</button></div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ── State ─────────────────────────────────────────────
-let PASS = '', API = '', screens = [], playlists = [];
-let editScreen = null, editPl = null, currentUrl = '';
+// ── State ────────────────────────────────────
+let PASS='', API='', screens=[], playlists=[];
+let ES=null, EP=null, CUR_URL='';
 
-// ── Login ─────────────────────────────────────────────
+// ── API (GET only — CORS yok) ─────────────────
+async function api(params) {
+  if (!API) throw new Error('API URL yok');
+  const q = new URLSearchParams({ pass: PASS, ...params });
+  // no-cors yerine direkt fetch — Apps Script GET CORS izni veriyor
+  const r = await fetch(`${API}?${q}`, { redirect: 'follow' });
+  const txt = await r.text();
+  try { return JSON.parse(txt); }
+  catch { throw new Error('Geçersiz yanıt: ' + txt.slice(0,100)); }
+}
+
+// ── Login ─────────────────────────────────────
 async function doLogin() {
-  const pass = document.getElementById('pass-input').value.trim();
-  if (!pass) return;
+  const pass = document.getElementById('pass-inp').value.trim();
+  const url  = document.getElementById('api-inp-login').value.trim();
+  if (!pass || !url) { lerr('Şifre ve URL gerekli'); return; }
   const btn = document.getElementById('login-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
-  document.getElementById('login-err').textContent = '';
-
-  // Şifreyi Apps Script ile doğrula (API yoksa localStorage'dan al)
-  const savedApi = localStorage.getItem('ds_api') || '';
-  if (savedApi) {
-    try {
-      const r = await fetch(`${savedApi}?action=login&pass=${encodeURIComponent(pass)}`).then(x=>x.json());
-      if (!r.ok) { showLoginErr('Şifre hatalı'); btn.disabled=false; btn.textContent='Giriş Yap'; return; }
-    } catch { /* API yoksa offline geçiş */ }
-  }
-
-  PASS = pass;
-  localStorage.setItem('ds_pass', pass);
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('app').classList.add('show');
-  API = savedApi;
-  document.getElementById('api-input').value = API;
-  if (API) { testApi(); loadAll(); }
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  try {
+    const q = new URLSearchParams({ action:'login', pass });
+    const r = await fetch(`${url}?${q}`, { redirect:'follow' }).then(x=>x.json());
+    if (!r.ok) { lerr(r.error||'Şifre hatalı'); btn.disabled=false; btn.textContent='Giriş Yap'; return; }
+    PASS=pass; API=url;
+    localStorage.setItem('ds_pass', pass);
+    localStorage.setItem('ds_api',  url);
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.add('show');
+    document.getElementById('api-inp').value = url;
+    setDot('g');
+    loadAll();
+  } catch(e) { lerr('Bağlantı hatası: '+e.message); }
   btn.disabled=false; btn.textContent='Giriş Yap';
 }
 
-function showLoginErr(msg) {
-  document.getElementById('login-err').textContent = msg;
-  document.getElementById('pass-input').value = '';
-  document.getElementById('pass-input').focus();
-}
+function lerr(msg) { document.getElementById('login-err').textContent = msg; }
 
-function logout() {
-  localStorage.removeItem('ds_pass');
-  location.reload();
-}
+function logout() { localStorage.clear(); location.reload(); }
 
-// Önceki oturumu kontrol et
+// Kayıtlı oturumu kontrol et
 window.addEventListener('load', () => {
-  const saved = localStorage.getItem('ds_pass');
-  if (saved) {
-    document.getElementById('pass-input').value = saved;
-    // Otomatik giriş dene
-    PASS = saved;
-    const savedApi = localStorage.getItem('ds_api') || '';
+  const p = localStorage.getItem('ds_pass');
+  const a = localStorage.getItem('ds_api');
+  if (p && a) {
+    PASS=p; API=a;
+    document.getElementById('pass-inp').value = p;
+    document.getElementById('api-inp-login').value = a;
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app').classList.add('show');
-    API = savedApi;
-    document.getElementById('api-input').value = API;
-    if (API) { testApi(); loadAll(); }
+    document.getElementById('api-inp').value = a;
+    setDot('y');
+    loadAll().then(()=>setDot('g')).catch(()=>setDot('r'));
   }
 });
 
-// ── API ───────────────────────────────────────────────
-let apiTestTimer;
-function onApiInput() {
-  API = document.getElementById('api-input').value.trim();
-  localStorage.setItem('ds_api', API);
-  setDot('');
-  clearTimeout(apiTestTimer);
-  if (API.length > 20) apiTestTimer = setTimeout(testApi, 900);
-}
+function onApiChange() { /* readonly — giriş ekranından değiştirilir */ }
 
-async function testApi() {
-  setDot('yellow');
-  try {
-    const r = await apiFetch('getScreens');
-    if (r.ok !== undefined) { setDot('green'); loadAll(); }
-    else setDot('red');
-  } catch { setDot('red'); }
-}
-
-function setDot(color) {
+function setDot(c) {
   const d = document.getElementById('api-dot');
-  d.className = 'dot' + (color ? ' ' + color : '');
+  d.className = 'dot' + (c?' '+c:'');
 }
 
-async function apiFetch(action, extra) {
-  if (!API) throw new Error('API URL yok');
-  const q = new URLSearchParams({ action, pass: PASS, ...extra });
-  const r = await fetch(`${API}?${q}`);
-  return r.json();
-}
-async function apiPost(body) {
-  if (!API) throw new Error('API URL yok');
-  const r = await fetch(API, { method:'POST', body: JSON.stringify({ ...body, pass: PASS }), headers:{'Content-Type':'application/json'} });
-  return r.json();
-}
-
+// ── Load ──────────────────────────────────────
 async function loadAll() {
-  if (!API) return;
-  try {
-    const [sr, pr] = await Promise.all([apiFetch('getScreens'), apiFetch('getPlaylists')]);
-    screens   = sr.data || [];
-    playlists = pr.data || [];
-    updateStats();
-    renderScreens();
-    renderPlaylists();
-  } catch(e) { toast('Veri yüklenemedi: ' + e.message, 'error'); }
+  const [sr, pr] = await Promise.all([
+    api({ action:'getScreens' }),
+    api({ action:'getPlaylists' })
+  ]);
+  screens   = sr.data  || [];
+  playlists = pr.data  || [];
+  updateStats();
+  renderScreens();
+  renderPls();
 }
 
-// ── Nav ───────────────────────────────────────────────
+// ── Nav ───────────────────────────────────────
 function nav(el) {
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
-  document.getElementById('page-' + el.dataset.page).classList.add('active');
+  document.getElementById('page-'+el.dataset.page).classList.add('active');
 }
 
-// ── Stats ─────────────────────────────────────────────
+// ── Stats ─────────────────────────────────────
 function updateStats() {
-  document.getElementById('stat-screens').textContent = screens.length;
-  document.getElementById('stat-active').textContent  = screens.filter(s=>s.playlistId).length;
-  document.getElementById('stat-pl').textContent      = playlists.length;
-  document.getElementById('nav-screens-count').textContent = screens.length;
-  document.getElementById('nav-pl-count').textContent      = playlists.length;
+  document.getElementById('st-s').textContent = screens.length;
+  document.getElementById('st-a').textContent = screens.filter(s=>s.playlistId).length;
+  document.getElementById('st-p').textContent = playlists.length;
+  document.getElementById('nc-s').textContent = screens.length;
+  document.getElementById('nc-p').textContent = playlists.length;
 }
 
-// ── Toast ─────────────────────────────────────────────
-function toast(msg, type) {
+// ── Toast ─────────────────────────────────────
+function toast(msg, t) {
   const el = document.getElementById('toast');
-  el.textContent = msg; el.className = 'toast' + (type ? ' '+type : '');
+  el.textContent=msg; el.className='toast'+(t?' '+t:'');
   el.classList.add('show');
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => el.classList.remove('show'), 2800);
+  toast._t=setTimeout(()=>el.classList.remove('show'),2800);
 }
 
-// ── Modal ─────────────────────────────────────────────
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
-document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); }));
+// ── Modal ─────────────────────────────────────
+function cm(id) { document.getElementById(id).classList.remove('open'); }
+function om(id) { document.getElementById(id).classList.add('open'); }
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 
-// ── Screens ───────────────────────────────────────────
+// ── Screens ───────────────────────────────────
 function renderScreens() {
   const g = document.getElementById('screens-grid');
   if (!screens.length) {
-    g.innerHTML = `<div class="empty" style="grid-column:1/-1">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
-      <p>Henüz ekran eklenmedi.<br>Sağ üstten yeni ekran ekleyin.</p>
-    </div>`; return;
+    g.innerHTML=`<div class="empty" style="grid-column:1/-1"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/></svg><p>Henüz ekran eklenmedi.</p></div>`;
+    return;
   }
-  g.innerHTML = screens.map((s,i) => {
-    const pl = playlists.find(p => p.id === s.playlistId);
+  g.innerHTML = screens.map((s,i)=>{
+    const pl = playlists.find(p=>p.id===s.playlistId);
     return `<div class="screen-card">
       <div class="screen-preview">
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
-        <span class="screen-badge ${pl?'active':'inactive'}">${pl?'Aktif':'Playlist yok'}</span>
-        <span class="screen-num">${String(i+1).padStart(2,'0')}</span>
+        <span class="scr-badge ${pl?'on':'off'}">${pl?'Aktif':'Playlist yok'}</span>
+        <span class="scr-num">${String(i+1).padStart(2,'0')}</span>
       </div>
       <div class="screen-body">
-        <div class="screen-name">${esc(s.name)}</div>
-        <div class="screen-meta">${esc(s.location||'Konum belirtilmedi')}</div>
-        <div class="screen-pl ${pl?'':'none'}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="5,3 19,12 5,21" fill="currentColor"/></svg>
-          ${pl ? esc(pl.name) : 'Playlist atanmadı'}
+        <div class="screen-name">${x(s.name)}</div>
+        <div class="screen-meta">${x(s.location||'Konum belirtilmedi')}</div>
+        <div class="screen-pl ${pl?'has':'none'}">
+          <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+          ${pl?x(pl.name):'Playlist atanmadı'}
         </div>
         <div class="screen-actions">
           <button class="btn btn-outline btn-sm" onclick="showUrl('${s.id}')">URL Kopyala</button>
-          <button class="btn btn-outline btn-sm" onclick="editScreenFn('${s.id}')">Düzenle</button>
-          <button class="btn btn-danger btn-sm" onclick="delScreen('${s.id}')">Sil</button>
+          <button class="btn btn-outline btn-sm" onclick="editScr('${s.id}')">Düzenle</button>
+          <button class="btn btn-danger btn-sm" onclick="delScr('${s.id}')">Sil</button>
         </div>
       </div>
     </div>`;
@@ -765,145 +492,148 @@ function renderScreens() {
 }
 
 function openAddScreen() {
-  if(!checkApi()) return;
-  editScreen = null;
-  document.getElementById('ms-title').textContent = 'Yeni Ekran';
-  document.getElementById('s-name').value = '';
-  document.getElementById('s-loc').value  = '';
-  fillPlSel(null);
-  openModal('modal-screen');
+  ES=null;
+  document.getElementById('ms-t').textContent='Yeni Ekran';
+  document.getElementById('s-name').value='';
+  document.getElementById('s-loc').value='';
+  fillPlSel(null); om('m-screen');
 }
 
-function editScreenFn(id) {
-  editScreen = screens.find(x=>x.id===id);
-  document.getElementById('ms-title').textContent = 'Ekranı Düzenle';
-  document.getElementById('s-name').value = editScreen.name;
-  document.getElementById('s-loc').value  = editScreen.location||'';
-  fillPlSel(editScreen.playlistId);
-  openModal('modal-screen');
+function editScr(id) {
+  ES=screens.find(x=>x.id===id);
+  document.getElementById('ms-t').textContent='Ekranı Düzenle';
+  document.getElementById('s-name').value=ES.name;
+  document.getElementById('s-loc').value=ES.location||'';
+  fillPlSel(ES.playlistId); om('m-screen');
 }
 
 function fillPlSel(sel) {
   document.getElementById('s-pl').innerHTML =
-    '<option value="">— Playlist seçin —</option>' +
-    playlists.map(p=>`<option value="${p.id}"${p.id===sel?' selected':''}>${esc(p.name)}</option>`).join('');
+    '<option value="">— Seçin —</option>' +
+    playlists.map(p=>`<option value="${p.id}"${p.id===sel?' selected':''}>${x(p.name)}</option>`).join('');
 }
 
 async function saveScreen() {
   const name = document.getElementById('s-name').value.trim();
-  if (!name) { toast('Ekran adı boş olamaz','error'); return; }
+  if (!name) { toast('Ekran adı boş olamaz','e'); return; }
   const btn = document.getElementById('s-save');
   btn.disabled=true; btn.innerHTML='<span class="spin"></span> Kaydediliyor';
   try {
-    const r = await apiPost({ action:'saveScreen', id:editScreen?.id||null, name, location:document.getElementById('s-loc').value.trim(), playlistId:document.getElementById('s-pl').value||null });
+    const r = await api({
+      action:'saveScreen',
+      id: ES?.id||'',
+      name,
+      location: document.getElementById('s-loc').value.trim(),
+      playlistId: document.getElementById('s-pl').value||''
+    });
     if (!r.ok) throw new Error(r.error);
-    closeModal('modal-screen'); await loadAll(); toast('Ekran kaydedildi','success');
-  } catch(e) { toast('Hata: '+e.message,'error'); }
+    cm('m-screen'); await loadAll(); toast('Ekran kaydedildi','s');
+  } catch(e) { toast('Hata: '+e.message,'e'); }
   btn.disabled=false; btn.textContent='Kaydet';
 }
 
-async function delScreen(id) {
+async function delScr(id) {
   if (!confirm('Bu ekranı silmek istediğinizden emin misiniz?')) return;
-  const r = await apiPost({ action:'deleteScreen', id });
+  const r = await api({ action:'deleteScreen', id });
   if (r.ok) { await loadAll(); toast('Ekran silindi'); }
-  else toast('Hata: '+r.error,'error');
+  else toast('Hata: '+r.error,'e');
 }
 
 function showUrl(id) {
   const base = location.href.replace(/index\.html.*$/,'').replace(/\/$/,'');
-  currentUrl = `${base}/player.html?screen=${id}&api=${encodeURIComponent(API)}`;
-  document.getElementById('url-txt').textContent = currentUrl;
-  openModal('modal-url');
+  CUR_URL = `${base}/player.html?screen=${id}&api=${encodeURIComponent(API)}`;
+  document.getElementById('url-txt').textContent = CUR_URL;
+  om('m-url');
 }
-function copyUrl() { navigator.clipboard.writeText(currentUrl).then(()=>toast('URL kopyalandı ✓','success')); }
+function copyUrl() { navigator.clipboard.writeText(CUR_URL).then(()=>toast('URL kopyalandı ✓','s')); }
 
-// ── Playlists ─────────────────────────────────────────
-function renderPlaylists() {
+// ── Playlists ─────────────────────────────────
+function renderPls() {
   const el = document.getElementById('pl-list');
   if (!playlists.length) {
-    el.innerHTML = `<div class="empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/></svg>
-      <p>Henüz playlist oluşturulmadı.<br>Sağ üstten yeni playlist ekleyin.</p>
-    </div>`; return;
+    el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/></svg><p>Henüz playlist oluşturulmadı.</p></div>`;
+    return;
   }
-  el.innerHTML = playlists.map(p => {
+  el.innerHTML = playlists.map(p=>{
     const used = screens.filter(s=>s.playlistId===p.id).map(s=>s.name).join(', ');
     return `<div class="pl-card">
-      <div class="pl-icon"><svg viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>
+      <div class="pl-icon"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></div>
       <div class="pl-info">
-        <div class="pl-name">${esc(p.name)}</div>
-        <div class="pl-meta">${used ? '📺 '+esc(used) : 'Herhangi bir ekrana atanmadı'}</div>
+        <div class="pl-name">${x(p.name)}</div>
+        <div class="pl-meta">${used?'📺 '+x(used):'Herhangi bir ekrana atanmadı'}</div>
       </div>
       <div class="pl-actions">
         <span class="badge ${used?'badge-green':'badge-gray'}">${used?'Aktif':'Pasif'}</span>
-        <button class="btn btn-outline btn-sm" onclick="editPlFn('${p.id}')">Düzenle</button>
+        <button class="btn btn-outline btn-sm" onclick="editPl('${p.id}')">Düzenle</button>
         <button class="btn btn-danger btn-sm" onclick="delPl('${p.id}')">Sil</button>
       </div>
     </div>`;
   }).join('');
 }
 
-function openAddPlaylist() {
-  if(!checkApi()) return;
-  editPl = null;
-  document.getElementById('mp-title').textContent = 'Yeni Playlist';
-  document.getElementById('p-name').value = '';
-  document.getElementById('media-list').innerHTML = '';
-  addEntry();
-  openModal('modal-pl');
+function openAddPl() {
+  EP=null;
+  document.getElementById('mp-t').textContent='Yeni Playlist';
+  document.getElementById('p-name').value='';
+  document.getElementById('media-list').innerHTML='';
+  addEntry(); om('m-pl');
 }
 
-async function editPlFn(id) {
-  editPl = playlists.find(x=>x.id===id);
-  document.getElementById('mp-title').textContent = 'Playlist\'i Düzenle';
-  document.getElementById('p-name').value = editPl.name;
-  document.getElementById('media-list').innerHTML = '';
+async function editPl(id) {
+  EP=playlists.find(p=>p.id===id);
+  document.getElementById('mp-t').textContent="Playlist'i Düzenle";
+  document.getElementById('p-name').value=EP.name;
+  document.getElementById('media-list').innerHTML='';
   try {
-    const r = await apiFetch('getPlaylistItems', { playlistId: id });
-    (r.data||[]).forEach(item => addEntry(item));
+    const r = await api({ action:'getPlaylistItems', playlistId:id });
+    (r.data||[]).forEach(item=>addEntry(item));
   } catch { addEntry(); }
-  openModal('modal-pl');
+  om('m-pl');
 }
 
 function addEntry(item) {
-  const div = document.createElement('div');
-  div.className = 'media-entry';
-  div.innerHTML = `
-    <input class="fi" placeholder="https://… (SharePoint veya direkt URL)" value="${item?esc(item.url):''}">
+  const d = document.createElement('div');
+  d.className='media-entry';
+  d.innerHTML=`
+    <input class="fi" placeholder="https://… (SharePoint veya URL)" value="${item?x(item.url):''}">
     <input class="fi" type="number" min="1" placeholder="10" value="${item?item.duration:'10'}" style="text-align:center">
     <button class="del-btn" onclick="this.parentElement.remove()">×</button>`;
-  document.getElementById('media-list').appendChild(div);
+  document.getElementById('media-list').appendChild(d);
 }
 
-async function savePlaylist() {
+async function savePl() {
   const name = document.getElementById('p-name').value.trim();
-  if (!name) { toast('Playlist adı boş olamaz','error'); return; }
+  if (!name) { toast('Playlist adı boş olamaz','e'); return; }
   const entries = [...document.querySelectorAll('#media-list .media-entry')];
-  const items = entries.map(e => {
-    const ins = e.querySelectorAll('input');
-    return { url: ins[0].value.trim(), duration: parseInt(ins[1].value)||10 };
+  const items = entries.map(e=>{
+    const ins=e.querySelectorAll('input');
+    return { url:ins[0].value.trim(), duration:parseInt(ins[1].value)||10 };
   }).filter(i=>i.url);
-  if (!items.length) { toast("En az bir URL girin",'error'); return; }
+  if (!items.length) { toast('En az bir URL girin','e'); return; }
   const btn = document.getElementById('p-save');
   btn.disabled=true; btn.innerHTML='<span class="spin"></span> Kaydediliyor';
   try {
-    const r = await apiPost({ action:'savePlaylist', id:editPl?.id||null, name, items });
+    const r = await api({
+      action:'savePlaylist',
+      id: EP?.id||'',
+      name,
+      items: JSON.stringify(items)   // JSON string olarak gönder
+    });
     if (!r.ok) throw new Error(r.error);
-    closeModal('modal-pl'); await loadAll(); toast('Playlist kaydedildi','success');
-  } catch(e) { toast('Hata: '+e.message,'error'); }
+    cm('m-pl'); await loadAll(); toast('Playlist kaydedildi','s');
+  } catch(e) { toast('Hata: '+e.message,'e'); }
   btn.disabled=false; btn.textContent='Kaydet';
 }
 
 async function delPl(id) {
-  if (!confirm("Bu playlist'i ve tüm içeriklerini silmek istiyor musunuz?")) return;
-  const r = await apiPost({ action:'deletePlaylist', id });
+  if (!confirm("Bu playlist'i silmek istediğinizden emin misiniz?")) return;
+  const r = await api({ action:'deletePlaylist', id });
   if (r.ok) { await loadAll(); toast('Playlist silindi'); }
-  else toast('Hata: '+r.error,'error');
+  else toast('Hata: '+r.error,'e');
 }
 
-// ── Utils ─────────────────────────────────────────────
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function checkApi() { if(!API){ toast('Önce Apps Script URL\'ini üst bara girin','error'); return false; } return true; }
+// ── Utils ─────────────────────────────────────
+function x(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 </script>
 </body>
 </html>
