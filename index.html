@@ -540,8 +540,13 @@ async function delScr(id) {
 }
 
 function showUrl(id) {
+  if (!id || id === 'undefined') {
+    toast('Ekran ID bulunamadı — sayfayı yenileyin','e');
+    return;
+  }
   const base = location.href.replace(/index\.html.*$/,'').replace(/\/$/,'');
-  CUR_URL = `${base}/player.html?screen=${id}&api=${encodeURIComponent(API)}`;
+  // Kısa URL: API player.html içine gömülü, sadece screen ID gerekli
+  CUR_URL = `${base}/player.html?screen=${id}`;
   document.getElementById('url-txt').textContent = CUR_URL;
   om('m-url');
 }
