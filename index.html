@@ -64,14 +64,36 @@
   // ===== AYAR: Apps Script Web App URL'in =====
   const API_URL = "https://script.google.com/macros/s/AKfycbyf8KuetUT8H1nrda2Kt9kzUIgf-TsrFn1XYu3AtHkxNEtKcCMJrzXkB6hB8yUy3uJezA/exec";
 
+  // JSONP yardımcı fonksiyonu (CORS sorunlarını aşmak için fetch yerine bunu kullanıyoruz)
+  function jsonpRequest(url) {
+    return new Promise((resolve, reject) => {
+      const callbackName = "jsonp_cb_" + Math.round(Math.random() * 1000000);
+      const script = document.createElement("script");
+
+      window[callbackName] = (data) => {
+        resolve(data);
+        delete window[callbackName];
+        script.remove();
+      };
+
+      script.onerror = () => {
+        reject(new Error("JSONP isteği başarısız"));
+        delete window[callbackName];
+        script.remove();
+      };
+
+      script.src = url + (url.includes("?") ? "&" : "?") + "callback=" + callbackName;
+      document.body.appendChild(script);
+    });
+  }
+
   async function checkScreenStatus() {
     let deviceId = localStorage.getItem("device_id");
 
     // Cihaz ilk kez açılıyorsa sunucudan PIN iste
     if (!deviceId) {
       try {
-        let response = await fetch(`${API_URL}?action=get-pin`);
-        let data = await response.json();
+        let data = await jsonpRequest(`${API_URL}?action=get-pin`);
         localStorage.setItem("device_id", data.device_id);
         document.getElementById("pin-text").innerText = data.pin_kodu;
       } catch (err) {
@@ -82,8 +104,7 @@
 
     // Cihaz eşleşmişse video durumunu kontrol et
     try {
-      let status = await fetch(`${API_URL}?action=check-status&id=${deviceId}`);
-      let screenData = await status.json();
+      let screenData = await jsonpRequest(`${API_URL}?action=check-status&id=${deviceId}`);
 
       if (screenData.has_video) {
         document.getElementById("video-alani").style.display = "none";
