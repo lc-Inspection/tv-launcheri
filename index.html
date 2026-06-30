@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inspection TV</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+  }
+  #video-alani {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    text-align: center;
+  }
+  #pin-kutusu {
+    background: #111;
+    padding: 50px 80px;
+    border-radius: 20px;
+    border: 2px solid #333;
+  }
+  #pin-kutusu h2 {
+    font-size: 28px;
+    font-weight: normal;
+    color: #aaa;
+    margin: 0 0 10px 0;
+  }
+  #pin-kutusu .pin {
+    font-size: 90px;
+    font-weight: bold;
+    letter-spacing: 10px;
+    color: #fff;
+  }
+  #my-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+</style>
+</head>
+<body>
+
+<div id="video-alani">
+  <div id="pin-kutusu">
+    <h2>Eşleştirme Kodu</h2>
+    <div class="pin" id="pin-text">...</div>
+  </div>
+</div>
+
+<video id="my-video" style="display:none;" autoplay loop muted playsinline></video>
+
+<script>
+  // ===== AYAR: Apps Script Web App URL'in =====
+  const API_URL = "https://script.google.com/macros/s/AKfycbyf8KuetUT8H1nrda2Kt9kzUIgf-TsrFn1XYu3AtHkxNEtKcCMJrzXkB6hB8yUy3uJezA/exec";
+
+  async function checkScreenStatus() {
+    let deviceId = localStorage.getItem("device_id");
+
+    // Cihaz ilk kez açılıyorsa sunucudan PIN iste
+    if (!deviceId) {
+      try {
+        let response = await fetch(`${API_URL}?action=get-pin`);
+        let data = await response.json();
+        localStorage.setItem("device_id", data.device_id);
+        document.getElementById("pin-text").innerText = data.pin_kodu;
+      } catch (err) {
+        document.getElementById("pin-text").innerText = "Bağlantı hatası";
+      }
+      return;
+    }
+
+    // Cihaz eşleşmişse video durumunu kontrol et
+    try {
+      let status = await fetch(`${API_URL}?action=check-status&id=${deviceId}`);
+      let screenData = await status.json();
+
+      if (screenData.has_video) {
+        document.getElementById("video-alani").style.display = "none";
+        let videoPlayer = document.getElementById("my-video");
+        videoPlayer.style.display = "block";
+
+        if (videoPlayer.src !== screenData.video_url) {
+          videoPlayer.src = screenData.video_url;
+          videoPlayer.muted = false;
+          videoPlayer.play().catch(() => {
+            // Otomatik oynatma engellenirse sessiz şekilde dene
+            videoPlayer.muted = true;
+            videoPlayer.play();
+          });
+        }
+      } else {
+        // Henüz video atanmamışsa PIN'i göstermeye devam et
+        document.getElementById("video-alani").style.display = "flex";
+        document.getElementById("my-video").style.display = "none";
+        document.getElementById("pin-text").innerText = "Eşleşme bekleniyor...";
+      }
+    } catch (err) {
+      console.error("Durum kontrolü hatası:", err);
+    }
+  }
+
+  checkScreenStatus();
+  setInterval(checkScreenStatus, 30000);
+</script>
+
+</body>
+</html>
