@@ -173,6 +173,18 @@
         document.getElementById("video-alani").style.display = "none";
         let videoPlayer = document.getElementById("my-video");
         videoPlayer.style.display = "block";
+
+        // Bazı Tizen TV tarayıcıları blob: URL'leri video kaynağı olarak kabul etmiyor.
+        // Böyle bir durumda otomatik olarak direkt stream URL'ine geri dönüyoruz.
+        videoPlayer.onerror = function () {
+          console.error("Video kaynağı oynatılamadı, direkt stream URL'ine geçiliyor:", videoPlayer.src);
+          if (videoPlayer.src !== screenData.video_url) {
+            videoPlayer.onerror = null; // sonsuz döngüyü engelle
+            videoPlayer.src = screenData.video_url;
+            videoPlayer.play().catch((e) => console.error("Stream de oynatılamadı:", e));
+          }
+        };
+
         videoPlayer.src = blobUrl;
         aktifVideoUrl = screenData.video_url;
 
