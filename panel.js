@@ -627,41 +627,38 @@ let animationEffect = 'slide'; // slide, fade, zoom, flip
 // APP CONFIG (Tüm Ayarlar)
 // ────────────────────────────
 const APP_CONFIG_KEY = 'lc_inspection_config';
-const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzrARAnKp2iqx4JsrXjnHdiSFpYgJtFPKWbZCPWQsXkgHUfpUlmmIx_d0Zom1gItq0T/exec';
-// ─── YENİ: cPanel/MySQL Performans API'si (kademeli backend geçişi) ───
-// Boş bırakılırsa (''), performans verisi eskisi gibi Google Apps Script
-// üzerinden (jsonpFetch ile) çekilir — hiçbir şey değişmez. Buraya cPanel'deki
-// api.php adresi yazılırsa, SADECE performans verisi bu yeni adresten
-// (gerçek fetch() + CORS ile, JSONP gerekmeden) çekilir. Diğer her şey
-// (Kayıp Zaman, Teknik İnceleme, Kullanıcılar, Klasmanlar vb.) değişmeden
-// Apps Script'i kullanmaya devam eder — bu kademeli, güvenli bir geçiştir.
-const PHP_PERFORMANS_API_URL = 'https://fantaktik.com/kalibre-api/api.php';
+const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzrARAnKp2iqx4JsrXjnHdiSFpYgJtFPKWbZCPWQsXkgHUfpUlmmIx_d0Zom1gItq0T/exec'; // ARTIK KULLANILMIYOR (referans için tutuluyor)
+
+// ─── cPanel/MySQL Backend API'si — TÜM veri artık buradan geçiyor ───
+// Performans, Klasmanlar, Config, Kullanıcılar, Kayıp Zaman, Teknik İnceleme,
+// Klasman Analizi — hepsi bu TEK api.php dosyası üzerinden okunup yazılıyor.
+// Google Sheets/Apps Script'e artık HİÇ ihtiyaç yok.
+const PHP_API_URL = 'https://fantaktik.com/kalibre-api/api.php';
+// Geriye dönük uyumluluk: bazı fonksiyonlar hâlâ PHP_PERFORMANS_API_URL adını
+// kullanıyor (aynı dosyaya işaret ediyor, yeniden adlandırmaya gerek yok).
+const PHP_PERFORMANS_API_URL = PHP_API_URL;
 const DEFAULT_API_TOKEN  = 'lcw-secret-2024';
 
-// ─── GOOGLE SHEETS TAMAMEN DEVRE DIŞI (kullanıcı talebiyle) ───
-// true olduğu sürece, Performans verisi HARİÇ (o zaten yukarıdaki
-// PHP_PERFORMANS_API_URL üzerinden, Sheets'e hiç dokunmadan çalışıyor),
-// TÜM Google Apps Script/Sheets bağlantı denemeleri (config/şifre çekme,
-// klasman otomatik çekme, kullanıcı girişi, kayıp zaman, teknik inceleme,
-// ekip senkronizasyonu vb.) baştan engellenir — hiçbir jsonpFetch çağrısı
-// artık Sheets'e gitmez. Sheets'e geri dönmek istenirse sadece bu satırı
-// false yapmak yeterli, başka hiçbir yeri değiştirmeye gerek yok.
-const SHEETS_DEVRE_DISI = true;
+// ─── GOOGLE SHEETS/APPS SCRIPT ARTIK KULLANILMIYOR ───
+// Eskiden bu bayrak Sheets bağlantılarını engellemek için "true" idi. Artık
+// TÜM istekler zaten PHP_API_URL'e gittiği için (appConfig.sheetsWebAppUrl
+// aşağıda PHP_API_URL'e sabitlendi) bu bayrağı "false" yapıp jsonpFetch'in
+// normal akışının (önce sunucu, olmazsa yerel önbellek) PHP ile sorunsuz
+// çalışmasına izin veriyoruz. Adı "SHEETS_DEVRE_DISI" olarak kaldı ama artık
+// anlamı "eski davranışı zorla engelleme" — kod tabanının başka hiçbir yerini
+// değiştirmemek için isim korundu.
+const SHEETS_DEVRE_DISI = false;
 
-// ─── SABİT ADMİN ŞİFRESİ (kullanıcı talebiyle) ───
-// ESKİDEN şifre HİÇBİR ZAMAN kodda saklanmıyordu — her girişte Sheets Config
-// sekmesinden çekiliyordu (appConfig.password her zaman '' ile başlıyordu).
-// Sheets artık tamamen devre dışı bırakıldığı için şifrenin bir yerde sabit
-// olarak tanımlı olması gerekiyor. Değiştirmek istersen sadece bu satırı
-// düzenle (panelin içinden "şifre değiştir" yapıldığında da bu değer değil,
-// tarayıcının localStorage'ındaki önbellek güncellenir — kalıcı olarak
-// değiştirmek için en güvenilir yol burayı elle güncelleyip yeniden
-// yayınlamaktır).
+// ─── SABİT ADMİN ŞİFRESİ (ilk kurulum / PHP'ye hiç ulaşılamazsa yedek) ───
+// Normal akışta şifre artık PHP'deki (kv_store) config kaydından okunur —
+// admin "Şifre Değiştir" yaptığında bu kayıt güncellenir ve gerçek şifre
+// olarak kullanılmaya devam eder. Bu sabit sadece PHP'ye hiç ulaşılamadığı
+// ilk açılışta veya bağlantı sorunu yaşandığında yedek/varsayılan değerdir.
 const SABIT_ADMIN_SIFRESI = 'kalibre2026';
 
 let appConfig = {
   password: SABIT_ADMIN_SIFRESI,
-  sheetsWebAppUrl: DEFAULT_SHEETS_URL,
+  sheetsWebAppUrl: PHP_API_URL,
   sheetsViewUrl: '',
   sheetsApiToken: DEFAULT_API_TOKEN,
   activeQuarters: []
@@ -727,93 +724,40 @@ async function pushConfigToSheets() {
 // script.google.com → script.googleusercontent.com redirect'i nedeniyle
 // GitHub Pages'ten çalışmıyordu. iframe redirect'i sorunsuz takip eder,
 // içindeki <script> postMessage ile veriyi üst pencereye iletir.
-// ─── jsonpFetch: Google Apps Script'e CORS kısıtlaması olmadan istek atar ───
-// v2 — GERÇEK JSONP (script etiketi) yöntemi. ESKİDEN gizli bir <iframe> açılıp
-// Apps Script'in ürettiği HTML sayfasının İÇİNDEKİ bir <script>'in
-// window.parent.postMessage() ile cevabı geri göndermesi bekleniyordu. Google
-// bazı durumlarda Apps Script exec cevaplarına X-Frame-Options: SAMEORIGIN
-// veya nonce tabanlı sıkı bir CSP ekleyebiliyor — bu, iframe İÇİNDEKİ script'in
-// hiç çalışmamasına yol açıyor: ağ isteği 200 OK döner ama postMessage asla
-// gönderilmediği için istemci 25 saniye sonra zaman aşımına düşüyor
-// ("internetim çalışıyor ama bağlanamıyor" şikayetinin kök nedeni buydu).
-// ÇÖZÜM: <script src="..."> etiketiyle klasik JSONP. Script etiketleri
-// X-Frame-Options'tan HİÇ etkilenmez (o başlık sadece iframe/frame gömülmesini
-// kısıtlar, script yüklemesini değil) — bu yüzden çok daha sağlam.
+// ─── jsonpFetch: KalibRe PHP Backend'ine (cPanel/MySQL) istek atar ───
+// v3 — GERÇEK fetch() + CORS. Artık Google Apps Script'e değil, kendi
+// api.php'mize (PHP_API_URL) konuşuyoruz. Kendi sunucumuz olduğu için CORS
+// header'larını (Access-Control-Allow-Origin) doğrudan kontrol edebiliyoruz —
+// bu yüzden eski iframe+postMessage / script-tag JSONP gibi CORS atlatma
+// numaralarına ARTIK HİÇ İHTİYAÇ YOK. Fonksiyon adı (jsonpFetch) geriye dönük
+// uyumluluk için korundu — kod tabanındaki 25 çağrı noktasının hiçbiri
+// değişmeden, sadece bu fonksiyonun İÇİ değişti.
 function jsonpFetch(url, params) {
-  // ── GOOGLE SHEETS TAMAMEN DEVRE DIŞI (kullanıcı talebiyle) ──────────────
-  // Kodun 25 farklı yerinden çağrılabiliyor; her birini tek tek engellemek
-  // yerine burada, TEK bir merkezi noktada durduruluyor. Böylece hangi
-  // özellik (Kayıp Zaman, Teknik İnceleme, Klasmanlar, Kullanıcılar vb.)
-  // bu fonksiyonu çağırırsa çağırsın, artık script.google.com'a HİÇBİR
-  // istek gitmiyor — 25 saniye beklemek yerine ANINDA (ve sessizce,
-  // konsola bir uyarı düşerek) başarısız olur. Sheets'e geri dönmek
-  // istenirse SHEETS_DEVRE_DISI'yi false yapmak yeterli.
-  if (SHEETS_DEVRE_DISI) {
-    console.warn(`⛔ jsonpFetch engellendi (Sheets devre dışı) — action: ${params?.action || '?'}`);
-    return Promise.reject(new Error('Google Sheets bağlantısı devre dışı bırakıldı.'));
-  }
+  const qs = Object.entries(params)
+    .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v == null ? '' : v).normalize('NFC')))
+    .join('&');
+  const fullUrl = url + (url.includes('?') ? '&' : '?') + qs;
 
-  const action = params.action || '';
-  const token  = params.token  || '';
-  // Her çağrıya benzersiz bir kimlik üretilir — hem rid (eşzamanlı isteklerin
-  // cevaplarının karışmasını önlemek için, bkz. backend autoResp) hem de JSONP
-  // callback fonksiyon adı olarak kullanılır (her çağrı kendi global callback'ini
-  // alır, böylece eşzamanlı çağrılar birbirine karışmaz).
-  const rid = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  const callbackName = '_jsonpCb_' + rid;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
 
-  return new Promise((resolve, reject) => {
-    // action ve token dışındaki tüm parametreleri de URL'e ekle
-    let scriptUrl = url + '?action=' + encodeURIComponent(action) +
-                          '&token='  + encodeURIComponent(token) +
-                          '&rid='    + encodeURIComponent(rid) +
-                          '&callback=' + encodeURIComponent(callbackName);
-    Object.entries(params).forEach(([k, v]) => {
-      if (k !== 'action' && k !== 'token') {
-        scriptUrl += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(String(v).normalize('NFC'));
-      }
-    });
-
-    const script = document.createElement('script');
-    let bitti = false;
-
-    const temizle = () => {
-      bitti = true;
+  return fetch(fullUrl, { method: 'GET', signal: controller.signal })
+    .then(res => {
       clearTimeout(timer);
-      try { delete window[callbackName]; } catch(e) { window[callbackName] = undefined; }
-      if (script.parentNode) script.parentNode.removeChild(script);
-    };
-
-    const timer = setTimeout(() => {
-      if (bitti) return;
-      temizle();
-      reject(new Error(
-        'Google Sheets\'e bağlanamadı (25 sn zaman aşımı).\n\n' +
-        'Bu geçici bir ağ yavaşlaşması olabilir.\n' +
-        'İnternet bağlantınızı kontrol edip tekrar deneyin.'
-      ));
-    }, 25000);
-
-    // Backend, cevabı bu global fonksiyonu çağırarak (JSONP) geri gönderir.
-    window[callbackName] = function(data) {
-      if (bitti) return;
-      temizle();
-      console.log('✅ JSONP başarılı — action:', action);
-      resolve(data);
-    };
-
-    script.onerror = function() {
-      if (bitti) return;
-      temizle();
-      reject(new Error(
-        'Google Sheets\'e bağlanamadı (script yüklenemedi).\n\n' +
-        'Web App URL\'si veya token yanlış olabilir, ya da Apps Script deployment\'ı geçersiz olabilir.'
-      ));
-    };
-
-    script.src = scriptUrl;
-    document.body.appendChild(script);
-  });
+      if (!res.ok) throw new Error('API HTTP ' + res.status);
+      return res.json();
+    })
+    .catch(err => {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        throw new Error(
+          'Sunucuya bağlanılamadı (25 sn zaman aşımı).\n\n' +
+          'Bu geçici bir ağ yavaşlaşması olabilir.\n' +
+          'İnternet bağlantınızı kontrol edip tekrar deneyin.'
+        );
+      }
+      throw err;
+    });
 }
 
 async function pullConfigFromSheets() {
@@ -845,11 +789,13 @@ localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(appConfig));
 
 // ─── İLK AÇILIŞTA OTOMATİK VERİ ÇEK ───
 async function autoFetchOnStartup() {
-  // SHEETS_DEVRE_DISI iken: config/klasman/teknik inceleme/kayıp zaman/ekip
-  // senkronizasyonu gibi Sheets'e bağımlı TÜM otomatik çekmeler tamamen
-  // atlanır. SADECE performans verisi çekilir — o da artık Sheets'e değil,
-  // PHP_PERFORMANS_API_URL'e (cPanel/MySQL) gider (pullPerformansFromSheets
-  // içinde zaten bu ayrım otomatik yapılıyor, burada tekrar yazmaya gerek yok).
+  // NOT: SHEETS_DEVRE_DISI artık "false" — bu yüzden aşağıdaki kısa devre
+  // bloğu ARTIK ÇALIŞMIYOR, sadece geçmiş bir geçiş aşamasının izi olarak
+  // duruyor (silinmedi, ileride tekrar lazım olursa true yapmak yeterli).
+  // Gerçek akış, bu bloğun ALTINDAKİ tam sürümdür — o da artık Google
+  // Sheets'e değil, appConfig.sheetsWebAppUrl (= PHP_API_URL) üzerinden
+  // cPanel/MySQL'e gider: Config, Klasmanlar, Performans, Teknik İnceleme,
+  // Kayıp Zaman, Ekip senkronizasyonu — hepsi PHP'den gelir.
   if (SHEETS_DEVRE_DISI) {
     if (!PHP_PERFORMANS_API_URL) return; // hiçbir kaynak yapılandırılmamışsa sessizce çık
     showStartupBanner('📥 Performans verisi çekiliyor...');
@@ -985,12 +931,14 @@ function loadConfig() {
     'https://script.google.com/macros/s/AKfycbwdM7izL7cwHzYNIAG_N0wZ1_NpKM_AyBp0wrpgRtnoLHa_WnMh-JQZfeRJhdq6BPzg7Q/exec',
     'https://script.google.com/macros/s/AKfycbzXFslNKDL3LlWEQPi8suFqSw5iqm65r2-KamgptTK1tXUY6Fpl25C8ok5zhoUGW1bSAg/exec'
   ];
-  // Her zaman HTML içindeki sabit URL kullan (farklı bilgisayarda da değişmez)
-  appConfig.sheetsWebAppUrl = DEFAULT_SHEETS_URL;
+  // Her zaman PHP API URL'ini kullan (farklı bilgisayarda da değişmez)
+  appConfig.sheetsWebAppUrl = PHP_API_URL;
   if (!appConfig.sheetsApiToken) appConfig.sheetsApiToken = DEFAULT_API_TOKEN;
-  // Sheets devre dışıyken şifre HER ZAMAN sabit değerden gelir — localStorage'da
-  // önceki bir Sheets bağlantısından kalmış farklı bir şifre varsa görmezden gelinir.
-  if (SHEETS_DEVRE_DISI) appConfig.password = SABIT_ADMIN_SIFRESI;
+  // Şifre artık localStorage'daki önbellekten (varsa) veya yukarıdaki sabit
+  // yedek değerden gelir; checkPassword() içinde PHP'den (kv_store config)
+  // gerçek şifre başarıyla çekilirse appConfig.password OTOMATİK güncellenir
+  // ve localStorage'a yazılır — burada zorla ezilmez.
+  if (!appConfig.password) appConfig.password = SABIT_ADMIN_SIFRESI;
   // UI'ya yansıt
   const wuEl = document.getElementById('sheets-webapp-url');
   const vuEl = document.getElementById('sheets-view-url');
