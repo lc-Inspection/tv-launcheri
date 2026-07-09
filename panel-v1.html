@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KalibRe Inspection Performans Paneli</title>
+<!-- ─── PWA META ─── -->
+<meta name="application-name" content="Inspection Panel">
+<meta name="description" content="Inspector Performans Takip Paneli">
+<meta name="theme-color" content="#0B1F3A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Inspection">
+<meta name="msapplication-TileColor" content="#0B1F3A">
+<link rel="manifest" id="pwa-manifest-link">
+<!-- inline SVG icon as data URI for apple-touch-icon -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='38' fill='%230B1F3A'/%3E%3Crect x='20' y='20' width='152' height='152' rx='24' fill='%231565C0'/%3E%3Ctext x='96' y='118' text-anchor='middle' font-family='Arial,sans-serif' font-size='72' font-weight='700' fill='white'%3ELC%3C/text%3E%3C/svg%3E">
+<!-- ─── END PWA META ─── -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+
+<!-- PASSWORD MODAL -->
+<div class="pw-overlay" id="pw-overlay" style="display:none">
+  <div class="pw-box">
+    <div class="pw-icon" id="pw-icon">🔐</div>
+    <div class="pw-title" id="pw-title" data-i18n="login_title">Giriş Yap</div>
+    <div class="pw-sub" id="pw-sub" data-i18n="login_sub">Şifrenizi girerek devam edin</div>
+    <input type="text" class="pw-input" id="pw-username" autocomplete="username" data-i18n-placeholder="username_placeholder" placeholder="Kullanıcı adı (admin için boş bırakın)" style="margin-bottom:8px" onkeydown="if(event.key==='Enter')document.getElementById('pw-input').focus()">
+    <input type="password" class="pw-input" id="pw-input" autocomplete="current-password" data-i18n-placeholder="password_placeholder" placeholder="••••••" onkeydown="if(event.key==='Enter')checkPassword()">
+   <label style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:10px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none">
+  <input type="checkbox" id="pw-remember" checked style="width:15px;height:15px;margin:0;cursor:pointer;accent-color:var(--blue2)">
+  Bu cihazda beni hatırla
+</label>
+    <div class="pw-err" id="pw-err"></div>
+    <button class="pw-btn" onclick="checkPassword()" data-i18n="login_btn">🔓 Giriş Yap</button>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted2);display:flex;align-items:center;justify-content:center;gap:6px" id="pw-server-status">
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--muted2);display:inline-block" id="pw-dot"></span>
+      <span id="pw-server-label" data-i18n="server_active">Sunucu doğrulaması aktif</span>
+    </div>
+    <!-- PWA Install inside login box -->
+    <div id="pwa-install-login-row" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--border2)">
+      <button onclick="pwaTriggerInstall()" style="display:inline-flex;align-items:center;gap:7px;width:100%;justify-content:center;padding:9px 16px;background:linear-gradient(135deg,#0B1F3A 0%,#1565C0 100%);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 3px 14px rgba(21,101,192,.35);transition:all .18s" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+        ⬇️ <span data-i18n="pwa_install_full">Uygulamayı Yükle — Kısayol Oluştur</span>
+      </button>
+      <div style="font-size:10px;color:var(--muted2);margin-top:6px;text-align:center" data-i18n="pwa_install_hint">Masaüstüne veya ana ekrana ekleyin, uygulama gibi açılır</div>
+    </div>
+  </div><!-- /pw-box -->
+</div><!-- /pw-overlay -->
+
+<!-- APP SHELL — initially hidden until login -->
+<div id="app-shell" style="display:none">
+
+<!-- SAVE SUCCESS NOTIFICATION -->
+<div class="save-success" id="save-notification">
+  ✅ Veriler başarıyla kaydedildi!
+</div>
+
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">LC</div>
+    <div class="topbar-title">
+     KalibRe Inspection Performans
+      <small data-i18n="app_subtitle">Inspection Control</small>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="top-badge" id="klasman-badge">0 <span data-i18n="klasman">klasman</span></span>
+    <button onclick="showPerformansHowItWorks()" style="display:inline-flex;align-items:center;gap:5px;padding:4px 12px;background:#fff;color:var(--navy);border:1px solid rgba(255,255,255,.25);border-radius:99px;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.2px;font-family:'DM Sans',sans-serif;transition:all .15s" onmouseover="this.style.background='#f0f6ff'" onmouseout="this.style.background='#fff'"><span data-i18n="how_it_works">ℹ️ Nasıl Çalışır</span></button>
+    <span class="top-badge" id="inspector-badge">0 inspector</span>
+    <!-- PWA Install Button -->
+    <button id="pwa-install-btn" onclick="pwaTriggerInstall()" title="Uygulamayı masaüstüne yükle">
+      ⬇️ <span id="pwa-install-label" data-i18n="pwa_install">Uygulamayı Yükle</span>
+    </button>
+    <div class="top-clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sb-label" data-i18n="nav_home">Ana Sayfa</div>
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <span class="nav-icon">📊</span>
+      <span data-i18n="nav_dashboard">Dashboard</span>
+      <span class="nav-count" id="nav-dashboard-count">0</span>
+    </div>
+
+    <div class="sb-label" data-i18n="nav_management">Yönetim</div>
+    <div class="nav-item" id="nav-klasmanlar" onclick="requirePassword(this)">
+      <span class="nav-icon">📦</span>
+      <span data-i18n="nav_klasman_mgmt">Klasman Yönetimi</span>
+      <span class="nav-count" id="nav-kl-count">0</span>
+    </div>
+    <div class="nav-item" id="nav-kullanicilar" onclick="showPage('kullanicilar', this)">
+      <span class="nav-icon">👥</span>
+      <span data-i18n="nav_user_mgmt">Kullanıcı Yönetimi</span>
+    </div>
+    <div class="nav-item" id="nav-kayip-zaman-admin" onclick="showPage('kayip-zaman-admin', this)" style="display:none">
+      <span class="nav-icon">⏸️</span>
+      <span>Kayıp Zaman</span>
+      <span class="nav-count" id="nav-kayip-count" style="background:#E53935">!</span>
+    </div>
+
+    <div class="sb-label" data-i18n="nav_analysis">Analiz</div>
+    <div class="nav-item" onclick="showPage('klasman-analiz')">
+  <span class="nav-icon">🎯</span>
+  <span data-i18n="nav_klasman_analysis">Klasman Analizi</span>
+</div>
+    <div class="nav-item" onclick="showPage('performans')">
+      <span class="nav-icon">📈</span>
+      <span data-i18n="nav_perf_analysis">Performans Analizi</span>
+    </div>
+    <div class="nav-item" id="nav-ekip-analiz" onclick="showPage('ekip-analiz')" style="display:none">
+      <span class="nav-icon">🧑‍🤝‍🧑</span>
+      <span data-i18n="nav_ekip_analiz">Ekibim Analizi</span>
+    </div>
+    <div class="nav-item" id="nav-kayip-zaman-ekip" onclick="showPage('kayip-zaman-ekip')" style="display:none">
+      <span class="nav-icon">⏸️</span>
+      <span>Kayıp Zaman Girişi</span>
+    </div>
+    <div class="nav-item" id="nav-teknik-inceleme" onclick="showPage('teknik-inceleme')">
+      <span class="nav-icon">🧪</span>
+      <span>Teknik İnceleme</span>
+    </div>
+
+    <div class="sb-label" data-i18n="nav_display">Görüntüleme</div>
+    <div class="nav-item" onclick="showPage('canli')">
+      <span class="nav-icon">📺</span>
+      <span data-i18n="nav_live">Canlı Gösterim</span>
+      <span class="nav-count" id="nav-canli-count">TV</span>
+    </div>
+
+    <div class="sidebar-footer" style="margin-top: auto; padding: 12px 10px 0; border-top: 1px solid rgba(255,255,255,.06);">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-radius: 7px; background: rgba(255,255,255,.04); margin-bottom: 6px;">
+        <span style="font-size: 11px; color: rgba(255,255,255,.35);">👤</span>
+        <strong style="font-size: 12px; color: rgba(255,255,255,.7); font-family: 'DM Mono', monospace;" id="current-username-label">admin</strong>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-radius: 7px; background: rgba(255,255,255,.04); margin-bottom: 6px;">
+        <span style="font-size: 11px; color: rgba(255,255,255,.35);">Inspector</span>
+        <strong style="font-size: 12px; color: rgba(255,255,255,.7); font-family: 'DM Mono', monospace;" id="sb-inspector-total">0</strong>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-radius: 7px; background: rgba(255,255,255,.04); margin-bottom: 6px;">
+        <span style="font-size: 11px; color: rgba(255,255,255,.35);" data-i18n="klasman">Klasman</span>
+        <strong style="font-size: 12px; color: rgba(255,255,255,.7); font-family: 'DM Mono', monospace;" id="sb-klasman-total">0</strong>
+      </div>
+      <button onclick="changeMyPasswordPrompt()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.1);border-radius:7px;font-size:11px;cursor:pointer;margin-bottom:6px;" data-i18n="change_my_pw">✏️ Şifremi Değiştir</button>
+      <button onclick="logoutUser('')" style="width:100%;padding:7px 10px;background:rgba(244,67,54,.12);color:#FFCDD2;border:1px solid rgba(244,67,54,.25);border-radius:7px;font-size:11px;cursor:pointer;" data-i18n="logout_btn">🚪 Çıkış Yap</button>
+    </div>
+  </nav>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- ══════════ DASHBOARD ══════════ -->
+    <div id="page-dashboard" class="page active">
+      <div class="ph">
+        <div class="ph-left">
+          <h1 data-i18n="dash_title">Inspector Performans Dashboard</h1>
+          <p data-i18n="dash_sub">Tüm inspectörlerin performans durumunu tek ekranda izleyin</p>
+        </div>
+
+        <!-- ÇEYREK BADGE -->
+        <div id="quarter-badge-wrap" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center">
+          <div id="quarter-badge-list" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
+        </div>
+        <!-- /ÇEYREK BADGE -->
+
+        <div class="ph-buttons">
+          <button class="btn" onclick="pullPerformansFromSheets()" id="dash-pull-btn" title="Sheets'ten performans verisini çek">
+            <span data-i18n="pull_from_sheets">📥 Sheets'ten Çek</span>
+          </button>
+          <button class="btn btn-warning" onclick="clearDashboardData()" id="btn-temizle" style="display:none">
+            <span data-i18n="clear">🗑️ Temizle</span>
+          </button>
+          <button class="btn btn-primary" onclick="exportToExcel()">
+            <span data-i18n="export_excel">📊 Excel'e Aktar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Ekibim (sadece ekip yöneticileri için) -->
+      <div class="card" id="my-team-card" style="display:none;margin-bottom:18px;overflow:hidden">
+        <div class="card-header" style="background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);border-bottom:none;padding:14px 16px">
+          <h2 style="color:#fff;gap:8px">
+            <span style="background:rgba(255,255,255,.12);border-radius:7px;padding:4px 7px;font-size:13px">👥</span>
+            <span data-i18n="my_team_title">Ekibim</span>
+          </h2>
+          <div style="display:flex;align-items:center;gap:8px;position:relative">
+            <button class="btn btn-sm" onclick="toggleDigerEkipler(event)" id="btn-diger-ekipler"
+              style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(4px)">
+              📊 <span data-i18n="other_teams_btn">Diğer Ekipler</span>
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="openTeamModal()">
+              ✏️ <span data-i18n="manage_team">Ekibi Düzenle</span>
+            </button>
+            <!-- Diğer ekipler popup -->
+            <div id="diger-ekipler-popup" style="display:none;position:fixed;z-index:999;background:#fff;border:1px solid var(--border2);border-radius:10px;box-shadow:var(--shadow2);min-width:240px;max-width:90vw;overflow:hidden">
+              <div style="padding:10px 14px;background:var(--navy);color:#fff;font-size:12px;font-weight:700">📊 <span data-i18n="other_teams_title">Ekip Performansları</span></div>
+              <div id="diger-ekipler-liste" style="padding:6px 0;max-height:min(300px, 60vh);overflow-y:auto"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="team-summary-stats">
+            <div class="summary-stat">
+              <div class="summary-stat-value" id="team-total-members">0</div>
+              <div class="summary-stat-label" data-i18n="team_member_count">Ekip Üyesi</div>
+            </div>
+            <div class="summary-stat" style="background:linear-gradient(135deg,var(--lgreen) 0%,#fff 100%);border-color:#B2DFDB">
+              <div class="summary-stat-value" id="team-avg-perf" style="color:var(--green)">0%</div>
+              <div class="summary-stat-label" data-i18n="team_avg_perf">Ekip Ort. Performans</div>
+            </div>
+            <div class="summary-stat" style="background:linear-gradient(135deg,var(--lamber) 0%,#fff 100%);border-color:#FFE082">
+              <div class="summary-stat-value" id="team-total-products" style="color:var(--amber)">0</div>
+              <div class="summary-stat-label" data-i18n="team_total_product">Ekip Toplam Ürün</div>
+            </div>
+            <div class="summary-stat" style="background:linear-gradient(135deg,var(--lblue3) 0%,#fff 100%);border-color:var(--lblue)">
+              <div class="summary-stat-value" id="team-avg-days" style="color:var(--blue)">0</div>
+              <div class="summary-stat-label" data-i18n="team_avg_days">Ekip Ort. Çalışma Günü</div>
+            </div>
+          </div>
+          <div id="team-members-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+      </div>
+
+      <!-- Ekip Yöneticileri (sadece admin için) -->
+      <div id="team-managers-section" style="display:none">
+        <div id="team-managers-toggle" onclick="toggleTeamManagersSection()" style="cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--lblue3) 0%,#fff 100%);border:1px solid var(--lblue);border-radius:10px;padding:11px 16px;margin:4px 0 12px;transition:background .15s">
+          <span style="font-size:15px">🧑‍💼</span>
+          <span style="font-size:12px;font-weight:700;color:var(--navy);letter-spacing:.3px" data-i18n="team_managers_label">Ekip Yöneticileri</span>
+          <span id="team-managers-count" style="font-size:11px;color:var(--blue2);font-weight:700;background:rgba(33,150,243,.12);padding:1px 8px;border-radius:99px"></span>
+          <span style="font-size:10.5px;color:var(--muted);margin-left:4px">— görmek için tıkla</span>
+          <span id="team-managers-chevron" style="margin-left:auto;font-size:12px;color:var(--blue2);transition:transform .2s">▶</span>
+        </div>
+        <div id="team-managers-grid" class="team-managers-grid" style="display:none"></div>
+      </div>
+
+      <div class="section-label" id="general-status-label" style="display:none">
+        <span>🌍</span><span data-i18n="general_status_label">Genel Durum</span>
+      </div>
+
+      <!-- Özet İstatistikler -->
+      <div class="summary-stats">
+        <div class="summary-stat" style="background:linear-gradient(135deg,var(--lgreen) 0%,#fff 100%);border-color:#B2DFDB;cursor:pointer" onclick="showPerfSeviyeDetay('excellent')">
+          <div class="summary-stat-value" id="excellent-count" style="color:var(--green)">0</div>
+          <div class="summary-stat-label" data-i18n="stat_excellent">Mükemmel (≥95%)</div>
+        </div>
+        <div class="summary-stat" style="background:linear-gradient(135deg,var(--lblue2) 0%,#fff 100%);border-color:var(--lblue);cursor:pointer" onclick="showPerfSeviyeDetay('good')">
+          <div class="summary-stat-value" id="good-count" style="color:var(--blue)">0</div>
+          <div class="summary-stat-label" data-i18n="stat_good">İyi (85-94%)</div>
+        </div>
+        <div class="summary-stat" style="background:linear-gradient(135deg,var(--lamber) 0%,#fff 100%);border-color:#FFE082;cursor:pointer" onclick="showPerfSeviyeDetay('average')">
+          <div class="summary-stat-value" id="average-count" style="color:var(--amber)">0</div>
+          <div class="summary-stat-label" data-i18n="stat_average">Orta (70-84%)</div>
+        </div>
+        <div class="summary-stat" style="background:linear-gradient(135deg,var(--lred) 0%,#fff 100%);border-color:#FFCDD2;cursor:pointer" onclick="showPerfSeviyeDetay('weak')">
+          <div class="summary-stat-value" id="poor-count" style="color:#EF5350">0</div>
+          <div class="summary-stat-label" data-i18n="stat_poor">Zayıf (50-69%)</div>
+        </div>
+        <div class="summary-stat" style="background:linear-gradient(135deg,#FFEBEE 0%,#fff 100%);border-color:#EF9A9A;cursor:pointer" onclick="showPerfSeviyeDetay('verypoor')">
+          <div class="summary-stat-value" id="verypoor-count" style="color:#B71C1C">0</div>
+          <div class="summary-stat-label" data-i18n="stat_verypoor">Çok Zayıf (&lt;50%)</div>
+        </div>
+        <div class="summary-stat" style="background:linear-gradient(135deg,var(--lgreen) 0%,#fff 100%);border-color:#B2DFDB">
+          <div class="summary-stat-value" id="avg-performance" style="color:var(--green)">0%</div>
+          <div class="summary-stat-label" data-i18n="stat_avg_perf">📅 Ortalama Performans</div>
+        </div>
+        <div class="summary-stat" style="background:linear-gradient(135deg,var(--lblue3) 0%,#fff 100%);border-color:var(--lblue)">
+          <div class="summary-stat-value" id="avg-working-days" style="color:var(--blue)">0</div>
+          <div class="summary-stat-label" data-i18n="stat_avg_days">⏰ Ortalama Çalışma Günü</div>
+        </div>
+        <div class="summary-stat" style="background:linear-gradient(135deg,var(--lamber) 0%,#fff 100%);border-color:#FFE082">
+          <div class="summary-stat-value" id="total-products" style="color:var(--amber)">0</div>
+          <div class="summary-stat-label" data-i18n="stat_total_product">📦 Toplam Ürün</div>
+        </div>
+      </div>
+
+      <!-- Filtre Çubuğu -->
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label data-i18n="filter_perf">Performans Filtresi:</label>
+          <select id="perf-filter" onchange="filterInspectors()">
+            <option value="" data-i18n="filter_all">All</option>
+            <option value="excellent" data-i18n="opt_excellent">Excellent (≥95%)</option>
+            <option value="good" data-i18n="stat_good">İyi (85-94%)</option>
+            <option value="average" data-i18n="stat_average">Orta (70-84%)</option>
+            <option value="poor" data-i18n="stat_poor">Zayıf (50-69%)</option>
+            <option value="verypoor" data-i18n="stat_verypoor">Çok Zayıf (&lt;50%)</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label data-i18n="filter_klasman">Klasman Filtresi:</label>
+          <select id="klasman-filter" onchange="filterInspectors()">
+            <option value="" data-i18n="filter_all_klasman">Tüm Klasmanlar</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label data-i18n="filter_search">Inspector Ara:</label>
+          <input type="text" id="inspector-search" data-i18n-placeholder="inspector_search_ph" placeholder="Inspector adı..." oninput="filterInspectors()">
+        </div>
+        <div class="filter-group">
+          <label data-i18n="filter_sort">Sıralama:</label>
+          <select id="sort-order" onchange="filterInspectors()">
+            <option value="perf-desc" data-i18n="sort_perf_desc">Performans (Yüksek-Düşük)</option>
+            <option value="perf-asc" data-i18n="sort_perf_asc">Performans (Düşük-Yüksek)</option>
+            <option value="name-asc" data-i18n="sort_name_asc">İsim (A-Z)</option>
+            <option value="name-desc" data-i18n="sort_name_desc">İsim (Z-A)</option>
+            <option value="adet-desc" data-i18n="sort_qty_desc">Adet (Çok-Az)</option>
+            <option value="adet-asc" data-i18n="sort_qty_asc">Adet (Az-Çok)</option>
+          </select>
+        </div>
+        <div class="filter-group" id="team-only-filter-group" style="display:none">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;font-size:12px;color:var(--navy)">
+            <input type="checkbox" id="team-only-filter" onchange="filterInspectors()" style="width:15px;height:15px;margin:0;cursor:pointer;accent-color:var(--blue2)">
+            <span data-i18n="team_only_filter">👥 Sadece Ekibim</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Inspector Kartları -->
+      <div class="dashboard-grid" id="inspector-grid">
+        <div class="empty">
+          <div class="empty-icon">📊</div>
+          <h3 data-i18n="no_perf_data">Performans Verisi Bulunamadı</h3>
+          <p data-i18n="no_perf_data_hint">Önce Performans Analizi sayfasından Excel yükleyin</p>
+        </div>
+      </div>
+
+      <!-- Sayfalama -->
+      <div class="pagination" id="dashboard-pagination" style="display: none;">
+        <button class="pag-btn" id="dash-btn-prev" onclick="changeDashboardPage(-1)" data-i18n="prev">‹ Önceki</button>
+        <div id="dash-page-numbers" style="display:flex;align-items:center;gap:4px;"></div>
+        <div class="pag-info" id="dash-page-info" style="display:none;">1 / 1</div>
+        <button class="pag-btn" id="dash-btn-next" onclick="changeDashboardPage(1)" data-i18n="next">Sonraki ›</button>
+      </div>
+    </div>
+
+    <!-- ══════════ KLASMAN YÖNETİMİ ══════════ -->
+    <div id="page-klasmanlar" class="page">
+      <div class="ph">
+        <div class="ph-left">
+          <h1 data-i18n="page_klasman_title">Klasman Yönetimi</h1>
+          <p data-i18n="page_klasman_sub">Ürün klasmanlarını tanımlayın ve istasyon sürelerini ayarlayın</p>
+        </div>
+        <div class="ph-buttons">
+          <button class="btn" onclick="pushToSheets()" title="Google Sheets'e gönder">
+            📤 Sheets'e Gönder
+          </button>
+          <button class="btn" onclick="pullFromSheets()" title="Google Sheets'ten çek">
+            📥 Sheets'ten Çek
+          </button>
+          <button class="btn btn-success" onclick="saveData()">
+            💾 Kaydet
+          </button>
+          <button class="btn btn-primary" onclick="openModal()">
+            ＋ Yeni Klasman
+          </button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start" id="klasman-layout">
+        <!-- Sol: Klasman Grid -->
+        <div class="card" style="overflow:hidden">
+          <div class="card-header" style="background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);border-bottom:none;padding:14px 16px">
+            <h2 style="color:#fff;gap:8px">
+              <span style="background:rgba(255,255,255,.12);border-radius:7px;padding:4px 7px;font-size:13px">📋</span>
+              Klasmanlar
+            </h2>
+            <span id="kl-sayac" style="font-size:10px;color:rgba(255,255,255,.5);font-weight:500;background:rgba(255,255,255,.08);padding:3px 9px;border-radius:99px"></span>
+          </div>
+          <div style="padding:10px 12px;border-bottom:1px solid var(--border2);background:var(--lblue3)">
+            <div style="position:relative">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted2)">🔍</span>
+              <input id="search-input" placeholder="Klasman ara…" oninput="aramaYap()" style="font-size:12px;padding-left:30px">
+            </div>
+          </div>
+          <!-- Tamamlanma Filtresi -->
+          <div class="kl-filter-bar" id="kl-filter-bar">
+            <button class="kl-filter-btn active" id="kl-f-all"    onclick="setKlFilter('all')"   data-i18n="all_btn">All</button>
+            <button class="kl-filter-btn"         id="kl-f-done"   onclick="setKlFilter('done')"  data-i18n="completed_btn">✅ Completed</button>
+            <button class="kl-filter-btn"         id="kl-f-undone" onclick="setKlFilter('undone')">⚠️ Tamamlanmayanlar</button>
+            <span id="kl-filter-counts" style="margin-left:auto;font-size:10px;color:var(--muted);align-self:center"></span>
+          </div>
+          <!-- Grid view -->
+          <div id="klasman-liste" style="min-height:200px"></div>
+          <!-- Pagination -->
+          <div class="kl-pag" id="kl-pag">
+            <button class="kl-pag-btn" id="kl-prev" onclick="changePage(-1)">‹ Önceki</button>
+            <div class="kl-pag-pages" id="kl-pag-pages"></div>
+            <button class="kl-pag-btn" id="kl-next" onclick="changePage(1)">Sonraki ›</button>
+          </div>
+        </div>
+
+        <!-- Sağ: İstasyon Editörü -->
+        <div class="card" id="editor-card" style="min-height:400px">
+          <div id="editor-content">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;text-align:center">
+              <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--lblue2),var(--lblue3));display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:18px;border:1px solid var(--border)">⚙️</div>
+              <h3 style="font-size:15px;font-weight:600;color:var(--navy);margin-bottom:8px" data-i18n="select_klasman">Bir klasman seçin</h3>
+              <p style="font-size:12px;color:var(--muted);max-width:220px;line-height:1.6" data-i18n="select_klasman_hint">İstasyon sürelerini düzenlemek için soldan bir klasman seçin</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── AYARLAR — AŞAĞI BÖLÜM (Aç/Kapa) ── -->
+      <div style="margin-top:24px">
+
+        <!-- Sheets Bağlantısı Toggle -->
+        <div class="card" style="margin-bottom:10px;overflow:hidden">
+          <div class="card-header" onclick="toggleSection('sheets-body','sheets-chevron')"
+               style="cursor:pointer;user-select:none;background:linear-gradient(135deg,#E8F5E9 0%,#fff 70%);border-bottom:none;padding:14px 18px">
+            <h2 style="gap:8px;color:var(--navy)">
+              <span style="font-size:16px">📊</span>
+              <span data-i18n="sheets_conn_title">Google Sheets Bağlantısı</span>
+            </h2>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:10px;color:var(--muted);font-weight:500" data-i18n="sheets_conn_sub">Sheets ile senkronize et</span>
+              <span id="sheets-chevron" style="font-size:14px;color:var(--muted);transition:transform .2s">▼</span>
+            </div>
+          </div>
+          <div id="sheets-body" style="display:none">
+            <div style="padding:8px 18px 6px;background:linear-gradient(135deg,#E8F5E9 0%,#fff 70%);border-bottom:1px solid var(--border2);display:flex;gap:8px">
+              <span class="sheets-btn sheets-btn-push" onclick="pushToSheets()" data-i18n="send">📤 Gönder</span>
+              <span class="sheets-btn sheets-btn-pull" onclick="pullFromSheets()" data-i18n="pull">📥 Çek</span>
+            </div>
+            <div class="card-body">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div>
+                  <label style="margin-bottom:6px;display:block;font-weight:600" data-i18n="sheets_url_label">Google Apps Script Web App URL'si (Veri Gönder/Al)</label>
+                  <div class="sheets-url-row">
+                    <input type="text" id="sheets-webapp-url" class="sheets-url-input" placeholder="https://script.google.com/macros/s/…/exec" oninput="saveConfig()">
+                  </div>
+                  <div style="font-size:10px;color:var(--muted);line-height:1.6">
+                    Google Sheets → Uzantılar → Apps Script menüsünden bir Web App deploy edin.
+                    <a href="#" onclick="showSheetsHelp();return false" style="color:var(--blue)" data-i18n="how_to_setup">Nasıl kurulur? ℹ️</a>
+                  </div>
+                </div>
+                <div>
+                  <label style="margin-bottom:6px;display:block;font-weight:600" data-i18n="sheets_table_label">Google Sheets Tablo Bağlantısı (Görüntüle)</label>
+                  <div class="sheets-url-row">
+                    <input type="text" id="sheets-view-url" class="sheets-url-input" placeholder="https://docs.google.com/spreadsheets/d/…" oninput="saveConfig()">
+                    <a id="sheets-view-link" href="#" target="_blank" style="padding:8px 12px;background:var(--green);color:#fff;border-radius:6px;font-size:12px;text-decoration:none;font-weight:500;white-space:nowrap" data-i18n="open_link">🔗 Aç</a>
+                  </div>
+                  <div style="font-size:10px;color:var(--muted)" data-i18n="open_link_hint">Tabloyu tarayıcıda açmak için kullanılır</div>
+                </div>
+              </div>
+              <!-- API Token -->
+              <div style="margin-top:12px;display:flex;align-items:center;gap:14px;padding:12px 14px;background:var(--lamber);border:1px solid #FFE082;border-radius:8px">
+                <span style="font-size:18px">🔑</span>
+                <div style="flex:1">
+                  <label style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:4px;display:block">API Token <span style="font-weight:400;color:var(--muted)" data-i18n="api_token_hint">(Apps Script'teki API_TOKEN değeriyle eşleşmeli)</span></label>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <input type="password" id="sheets-api-token" placeholder="lcw-secret-2024" oninput="saveConfig()" style="width:280px;font-family:'DM Mono',monospace;letter-spacing:2px">
+                    <button onclick="toggleTokenVisibility()" style="padding:6px 10px;border:1px solid var(--border);background:var(--white);border-radius:6px;cursor:pointer;font-size:12px" id="token-eye-btn">👁️</button>
+                    <span style="font-size:11px;color:var(--muted)" data-i18n="apiscript_match_hint">Apps Script dosyasındaki değerle eşleşmeli</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Şifre Ayarları Toggle -->
+        <div class="card" style="margin-bottom:24px;overflow:hidden">
+          <div class="card-header" onclick="toggleSection('pw-settings-body','pw-chevron')"
+               style="cursor:pointer;user-select:none;background:linear-gradient(135deg,#FFF8E1 0%,#fff 70%);border-bottom:none;padding:14px 18px">
+            <h2 style="gap:8px;color:var(--navy)">
+              <span style="font-size:16px">🔒</span>
+              <span data-i18n="pw_settings">Şifre Ayarları</span>
+            </h2>
+            <span id="pw-chevron" style="font-size:14px;color:var(--muted);transition:transform .2s">▼</span>
+          </div>
+          <div id="pw-settings-body" style="display:none">
+            <div class="card-body">
+              <div style="padding:10px 14px;background:var(--lblue3);border-radius:8px;border:1px solid var(--lblue);font-size:11px;color:var(--navy)">
+                <strong data-i18n="pw_settings">🔒 Şifre Ayarları:</strong>
+                <span style="color:var(--muted)" data-i18n="current_pw">Mevcut şifre: </span>
+                <code id="pw-display" style="background:var(--border2);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace">****</code>
+                <button onclick="changePwPrompt()" style="margin-left:10px;padding:3px 10px;background:var(--amber);color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer" data-i18n="change_pw">✏️ Şifreyi Değiştir</button>
+                <span id="pw-sheets-sync-status" style="margin-left:10px;font-size:10px;color:var(--muted)">📊 Sheets Config'e otomatik senkronize edilir</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /ayarlar alt bölüm -->
+    </div><!-- /page-klasmanlar -->
+<!-- ══════════ KLASMAN ANALİZİ ══════════ -->
+<div id="page-klasman-analiz" class="page">
+  <div class="ph">
+    <div class="ph-left">
+      <h1 data-i18n="klasman_analiz_title">🎯 Klasmana Göre Gerçekleşen Süre Analizi</h1>
+      <p data-i18n="klasman_analiz_sub">Klasman bazında standart ve gerçekleşen birim muayene sürelerini karşılaştırın</p>
+    </div>
+<div class="ph-buttons">
+      <button class="btn" onclick="pullKlasmanAnalizFromSheets()" id="kla-pull-btn">
+        📥 Sheets'ten Çek
+      </button>
+      <button class="btn btn-primary" onclick="pushAndRenderKlasmanAnaliz()" id="kla-push-btn">
+        📤 Sheets'e Gönder & Yenile
+      </button>
+    </div>
+  </div>
+  <div id="klasman-analiz-icerik">
+    <div class="empty">
+      <div class="empty-icon">🎯</div>
+      <h3 data-i18n="waiting_data">Veri bekleniyor</h3>
+      <p data-i18n="waiting_data_sub">Performans analizi çalıştırıldıktan sonra burası otomatik dolacak</p>
+    </div>
+  </div>
+</div>
+<!-- ══════════ EKİBİM ANALİZİ ══════════ -->
+<div id="page-ekip-analiz" class="page">
+  <div class="ph">
+    <div class="ph-left">
+      <h1 data-i18n="ekip_analiz_title">🧑‍🤝‍🧑 Ekibim Analizi</h1>
+      <p data-i18n="ekip_analiz_sub">Ekip üyelerinizin performansını klasman bazında karşılaştırın</p>
+    </div>
+  </div>
+  <div id="ekip-analiz-icerik">
+    <div class="empty">
+      <div class="empty-icon">🧑‍🤝‍🧑</div>
+      <h3 data-i18n="waiting_data">Veri bekleniyor</h3>
+      <p data-i18n="waiting_data_sub">Performans analizi çalıştırıldıktan sonra burası otomatik dolacak</p>
+    </div>
+  </div>
+</div>
+    <!-- ══════════ PERFORMANS ANALİZİ ══════════ -->
+    <div id="page-performans" class="page">
+      <div class="ph">
+        <div class="ph-left">
+          <h1 data-i18n="perf_page_title">Performans Analizi</h1>
+          <p data-i18n="perf_page_sub">Excel dosyası yükleyin ve inspector bazında performansı ölçün</p>
+        </div>
+        <div class="ph-buttons">
+          <button class="btn" onclick="showPerformansHowItWorks()" title="Hesaplama mantığını öğrenin">
+            ℹ️ Nasıl Çalışır
+          </button>
+          <button class="btn btn-success" onclick="pushPerformansManual(event)" id="perf-push-btn" title="Mevcut performans verilerini Google Sheets'e gönder">
+            📤 Sheets'e Gönder
+          </button>
+          <button class="btn" onclick="pullPerformansFromSheetsManual(event)" id="perf-pull-btn" title="Google Sheets'ten performans verilerini çek">
+            📥 Sheets'ten Çek
+          </button>
+        </div>
+      </div>
+
+      <!-- Üst: Upload -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><h2 data-i18n="excel_upload_title">📁 Excel Yükle</h2></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+            <span data-i18n="excel_cols_hint">Excel dosyanızda <strong>A Klasman</strong>, <strong>R BakilacakMiktar</strong>, <strong>K BaşlamaTarihi</strong> ve <strong>L BitişTarihi</strong> sütunları bulunmalıdır.</span>
+          </p>
+          <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none" onchange="excelYukle(event)">
+          <div style="border: 2px dashed var(--border); border-radius: var(--r); padding: 22px; text-align: center; cursor: pointer; transition: all .15s; background: var(--lblue3);" id="upload-zone" onclick="document.getElementById('file-input').click()">
+            <div style="font-size:28px;margin-bottom:8px">📂</div>
+            <div style="font-size:13px;font-weight:500;color:var(--navy)" data-i18n="file_drop">Dosya seçin veya sürükleyin</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="file_format">.xlsx / .xls format</div>
+          </div>
+          <div id="file-status" style="margin-top:10px;font-size:12px"></div>
+        </div>
+      </div>
+
+      <!-- Sütun Eşleme -->
+      <div style="display: none; background: var(--lblue3); border: 1px solid var(--lblue); border-radius: var(--r); padding: 16px 18px; margin-bottom: 16px;" id="sutun-panel">
+        <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px" data-i18n="col_mapping_title">🔗 Column Mapping</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px" data-i18n="overtime_col_hint">Mesai sütunu seçilmezse günlük <strong>7.5 saat × gün</strong> bazında hesaplanır.</div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:12px">
+          <div>
+            <label data-i18n="col_klasman">Classification Column (A)</label>
+            <select id="col-klasman" onchange="performansHesapla()"></select>
+          </div>
+          <div>
+            <label data-i18n="col_inspector">Inspector Sütunu</label>
+            <select id="col-inspector" onchange="performansHesapla()"></select>
+          </div>
+          <div>
+            <label>BakilacakMiktar (R)</label>
+            <select id="col-adet" onchange="performansHesapla()"></select>
+          </div>
+          <div>
+            <label data-i18n="col_start_date">Start Date (K)</label>
+            <select id="col-baslangic" onchange="performansHesapla()"></select>
+          </div>
+          <div>
+            <label data-i18n="col_end_date">End Date (L)</label>
+            <select id="col-bitis" onchange="performansHesapla()"></select>
+          </div>
+          <div>
+            <label>TalepNumarası</label>
+            <select id="col-talep" onchange="performansHesapla()">
+              <option value="">— Kullanma —</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="col_overtime_label">⏰ Overtime Duration <span style="color:var(--muted2);font-weight:400">(dk veya s:d) <span style="color:var(--amber);font-weight:600">K/L seçiliyse otomatik</span></span></label>
+            <select id="col-mesai" onchange="performansHesapla()">
+              <option value="" data-i18n="col_auto_derive">— Auto-derive from K/L columns —</option>
+            </select>
+          </div>
+        </div>
+        <!-- InspectionYapilanDepo Filtresi -->
+        <div style="margin-top:12px;padding:10px 14px;background:linear-gradient(135deg,#E3F2FD 0%,#fff 100%);border:1px solid var(--lblue);border-radius:9px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <span style="font-size:15px">🏭</span>
+          <span style="font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap">InspectionYapilanDepo Filtresi</span>
+          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">
+            <label style="margin:0;font-size:11px;color:var(--muted);white-space:nowrap" data-i18n="col_t_label">Column (T)</label>
+            <select id="col-yapilan-depo" onchange="performansHesapla()" style="flex:1">
+              <option value="" data-i18n="filter_none">— Filtre yok (tüm satırlar) —</option>
+            </select>
+          </div>
+          <span style="font-size:11px;color:var(--muted)" data-i18n="blank_rows_hint">Seçilirse boş satırlar hesaplamaya dahil edilmez.</span>
+        </div>
+        <!-- InspectionSonuc — Kaldı Override -->
+        <div style="margin-top:12px;padding:10px 14px;background:linear-gradient(135deg,#FFF3E0 0%,#fff 100%);border:1px solid #FFCC80;border-radius:9px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <span style="font-size:15px">🔴</span>
+          <div>
+            <span style="font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap">InspectionSonuc Kolonu</span>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.4;">Sonuç <strong style="color:#E65100">Kaldı</strong> olan satırlarda örnekleme modu otomatik <strong>Kapalı</strong>'ya alınır → tüm adet kontrol edilir.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">
+            <label style="margin:0;font-size:11px;color:var(--muted);white-space:nowrap">Sütun:</label>
+            <select id="col-sonuc" onchange="performansHesapla()" style="flex:1">
+              <option value="">— Kullanma —</option>
+            </select>
+          </div>
+          <div id="sonuc-kaldi-ozet" style="font-size:11px;color:#E65100;font-weight:600;display:none;background:#FFF8E1;border:1px solid #FFE082;padding:4px 10px;border-radius:6px;white-space:nowrap;"></div>
+        </div>
+        <!-- Örnekleme Modu -->
+        <div style="margin-top:12px;padding:10px 14px;background:linear-gradient(135deg,#F3E5F5 0%,#fff 100%);border:1px solid #CE93D8;border-radius:9px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <span style="font-size:15px">🔢</span>
+            <span style="font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap" data-i18n="sampling_mode">Örnekleme Modu</span>
+            <span id="ornekleme-default-tag" style="display:none;font-size:10px;font-weight:600;color:#8E24AA;background:rgba(142,36,170,.1);padding:2px 8px;border-radius:99px;white-space:nowrap" data-i18n="sampling_default_label">Default (rows outside all periods)</span>
+                        <div style="display:flex;gap:6px;align-items:center">
+              <label style="margin:0;display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--navy);padding:5px 11px;border-radius:7px;border:1.5px solid #CE93D8;background:#fff;transition:all .15s" id="lbl-ornekleme-kapat">
+                <input type="radio" name="ornekleme-mod" value="kapali" id="ornekleme-kapali" onchange="performansHesapla()" checked style="width:auto;padding:0;border:none;box-shadow:none"> Kapalı
+              </label>
+              <label style="margin:0;display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--navy);padding:5px 11px;border-radius:7px;border:1.5px solid #CE93D8;background:#fff;transition:all .15s" id="lbl-ornekleme-bir">
+                <input type="radio" name="ornekleme-mod" value="bir" id="ornekleme-bir" onchange="performansHesapla()" style="width:auto;padding:0;border:none;box-shadow:none"> Bir Alttan
+              </label>
+              <label style="margin:0;display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--navy);padding:5px 11px;border-radius:7px;border:1.5px solid #CE93D8;background:#fff;transition:all .15s" id="lbl-ornekleme-iki">
+                <input type="radio" name="ornekleme-mod" value="iki" id="ornekleme-iki" onchange="performansHesapla()" style="width:auto;padding:0;border:none;box-shadow:none"> <span data-i18n="two_below">İki Alttan</span>
+              </label>
+            </div>
+            <div id="ornekleme-aciklama" style="font-size:11px;color:var(--muted);flex:1;min-width:200px">
+              <span data-i18n="sampling_off">Kapalı: gerçek adet kullanılır.</span> <strong data-i18n="one_below">Bir Alttan</strong> / <strong data-i18n="two_below">İki Alttan</strong>: <span data-i18n="sampling_desc_end">adet örnekleme tablosuna göre dönüştürülür.</span>
+            </div>
+            <div id="ornekleme-tablo-preview" style="font-size:10px;color:var(--muted2);font-family:'DM Mono',monospace;display:none;background:rgba(206,147,216,.1);padding:5px 10px;border-radius:6px;white-space:nowrap"></div>
+          </div>
+
+          <!-- Tarihe Göre Farklı Seviyeler -->
+          <div style="border-top:1px dashed #CE93D8;padding-top:10px;display:flex;flex-direction:column;gap:8px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--navy);margin:0">
+              <input type="checkbox" id="ornekleme-tarihli-aktif" onchange="toggleOrneklemeDonemleri()" style="width:16px;height:16px;margin:0;cursor:pointer;accent-color:#8E24AA">
+              <span data-i18n="sampling_date_toggle">📅 Tarihe Göre Farklı Seviyeler Kullan</span>
+            </label>
+            <div id="ornekleme-donemler-wrap" style="display:none;flex-direction:column;gap:8px">
+              <div style="font-size:10.5px;color:var(--muted);line-height:1.4" data-i18n="sampling_date_hint">Aktif edildiğinde, başlangıç tarihi belirlenen aralıklara denk gelen kayıtlar o döneme ait örnekleme moduna göre hesaplanır. Aralık dışında kalan kayıtlar için yukarıdaki varsayılan mod kullanılır.</div>
+              <div id="ornekleme-donemler-list" style="display:flex;flex-direction:column;gap:6px"></div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <button type="button" class="btn btn-sm" id="btn-ornekleme-donem-ekle" onclick="addOrneklemeDonemi()" style="border-color:#CE93D8;color:#8E24AA">
+                  <span data-i18n="sampling_period_add">+ Dönem Ekle</span>
+                </button>
+                <span id="ornekleme-donem-max-hint" style="font-size:10.5px;color:var(--muted);display:none" data-i18n="sampling_period_max">En fazla 10 dönem ekleyebilirsiniz</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 2.Kalite Genel Performansa Dahil Etme Ayarı -->
+        <div style="margin-top:14px;padding:12px 14px;background:linear-gradient(135deg,#F3E5F5 0%,#fff 100%);border:1px solid #CE93D8;border-radius:9px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--navy);margin:0">
+            <input type="checkbox" id="inp-2kalite-dahil" onchange="on2KaliteDahilChange()" style="width:16px;height:16px;margin:0;cursor:pointer;accent-color:#8E24AA">
+            <span>🏷️ 2.Kalite ürünleri Genel Performans hesabına dahil et</span>
+          </label>
+          <div style="font-size:11px;color:var(--muted2);flex:1;min-width:240px">
+            Kapalıyken (varsayılan) 2.Kalite kontrolleri Düz. Performans hesabına dahil edilmez, kartlarda ayrı bir satırda gösterilir.
+            İşaretlenirse 2.Kalite kayıtları da diğer kayıtlar gibi Genel Performansa dahil olur ve kartlardaki ayrı 2.Kalite satırı gizlenir.
+          </div>
+        </div>
+        <!-- Overtime Düz. Performansa Dahil Etme Ayarı -->
+        <div style="margin-top:10px;padding:12px 14px;background:linear-gradient(135deg,#FFF3E0 0%,#fff 100%);border:1px solid #FFCC80;border-radius:9px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--navy);margin:0">
+            <input type="checkbox" id="inp-overtime-dahil" onchange="onOvertimeDahilChange()" style="width:16px;height:16px;margin:0;cursor:pointer;accent-color:#E65100">
+            <span>🌙 Overtime çalışmasını Düz. Performansa dahil et</span>
+          </label>
+          <div style="font-size:11px;color:var(--muted2);flex:1;min-width:240px">
+            Kapalıyken (varsayılan) Düz. Performans sadece normal mesai (08:00–16:45) üzerinden hesaplanır.
+            İşaretlenirse overtime saatleri de performans paydasına eklenir — performans oranı değişir.
+          </div>
+        </div>
+        <!-- Verimlilik Ayarı -->
+        <div style="margin-top:14px;padding:12px 14px;background:linear-gradient(135deg,#FFF8E1 0%,#fff 100%);border:1px solid #FFE082;border-radius:9px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:16px">⚡</span>
+            <span style="font-size:12px;font-weight:600;color:var(--navy)">Hedef Verimlilik</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="margin:0;font-size:11px;color:var(--muted);white-space:nowrap">Hedef %</label>
+            <input type="number" id="inp-verimlilik" min="1" max="200" value="100"
+              style="width:80px;font-size:13px;font-weight:600;text-align:center;border:1.5px solid var(--amber);border-radius:7px;padding:6px 8px"
+              onchange="onHedefChange()" oninput="onHedefChange()">
+          </div>
+          <div style="font-size:11px;color:var(--muted2);flex:1;min-width:200px">
+            Hedef verimlilik <strong>%100</strong> = tam kapasitede çalışma.
+            <span id="verimlilik-aciklama" style="color:var(--amber);font-weight:600"></span>
+            Düzeltilmiş Performans = (Standart Süre ÷ Mesai) × (100 ÷ Hedef%)
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;background:var(--white);border:1px solid var(--border2);border-radius:7px;padding:6px 12px">
+            <span style="font-size:10px;color:var(--muted)" data-i18n="adj_avg_perf">Düz. Ort. Performans:</span>
+            <span id="verimlilik-ort" style="font-size:15px;font-weight:700;color:var(--amber);font-family:'DM Mono',monospace">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tablo -->
+      <div class="card" id="perf-card">
+        <div class="empty" id="perf-empty">
+          <div class="empty-icon">📊</div>
+          <h3 data-i18n="no_data_yet">Henüz performans verisi yok</h3>
+          <p data-i18n="no_data_hint">Analizi görmek için Excel yükleyin ve klasman tanımlarını tamamlayın</p>
+        </div>
+        <div id="perf-tablo" style="display:none;overflow-x:auto"></div>
+      </div>
+    </div>
+
+    <!-- ══════════ CANLI GÖSTERİM ══════════ -->
+    <div id="page-canli" class="page">
+      <!-- Kurumsal Başlık Çubuğu -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding:18px 24px;background:var(--navy);border-radius:12px;box-shadow:0 4px 24px rgba(11,31,58,.25)">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:44px;height:44px;background:linear-gradient(135deg,#1565C0,#42A5F5);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;box-shadow:0 4px 14px rgba(33,150,243,.4);flex-shrink:0">LC</div>
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#fff;letter-spacing:-.3px" data-i18n="live_page_title">Canlı Performans Gösterimi</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px;letter-spacing:.3px" data-i18n="live_page_sub">Inspector performanslarını büyük ekranda yayınlayın · HD video dışa aktarımı</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn" onclick="toggleFullscreen()" style="gap:6px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);color:#fff">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            Tam Ekran
+          </button>
+          <button class="btn btn-success" onclick="startVideoRecording()" id="video-rec-btn" style="gap:6px" title="HD 1920×1080 video oluştur">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+            HD Video
+          </button>
+          <button class="btn btn-primary" onclick="toggleSlideshow()" id="slideshow-btn" style="gap:6px;padding:9px 20px;font-weight:700;font-size:13px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+            <span data-i18n="start_slideshow">Gösterimi Başlat</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Kontrol Paneli -->
+      <div class="card" id="canli-controls" style="margin-bottom:16px">
+        <div class="card-header">
+          <h2><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg> <span data-i18n="broadcast_settings">Yayın Ayarları</span></h2>
+          <div style="font-size:11px;color:var(--muted)" data-i18n="broadcast_settings_hint">Gösterimi başlatmadan önce ayarlayın</div>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:end">
+            <div>
+              <label data-i18n="slide_duration">⏱ Slayt Süresi</label>
+              <select id="slide-duration" onchange="updateSlideDuration()">
+                <option value="3000">3 saniye</option>
+                <option value="5000" selected>5 saniye</option>
+                <option value="8000">8 saniye</option>
+                <option value="10000">10 saniye</option>
+                <option value="15000">15 saniye</option>
+              </select>
+            </div>
+            <div>
+              <label data-i18n="view_mode">👁 Görüntüleme Modu</label>
+              <select id="display-mode" onchange="updateDisplayMode()">
+                <option value="all" data-i18n="all_inspectors">Tüm Inspectorler</option>
+                <option value="top5" data-i18n="top5">İlk 10</option>
+                <option value="excellent">Mükemmel (≥95%)</option>
+                <option value="good" data-i18n="opt_good">İyi (≥85%)</option>
+              </select>
+            </div>
+            <div>
+              <label data-i18n="transition_effect">✨ Geçiş Efekti</label>
+              <select id="animation-effect" onchange="updateAnimationEffect()">
+                <option value="slide" selected data-i18n="slide_slide">Kaydırma</option>
+                <option value="fade">Solma</option>
+                <option value="zoom" data-i18n="slide_zoom">Yakınlaştırma</option>
+                <option value="flip" data-i18n="slide_flip">Çevirme</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-warning" onclick="resetSlideshow()" style="flex:1" data-i18n="reset">↺ Sıfırla</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ana Gösterim Alanı -->
+      <div class="slideshow-container" id="slideshow-container">
+
+        <!-- Parçacık Efekti Arka Planı -->
+        <div class="slide-particles" id="slide-particles"></div>
+
+        <!-- Countdown Ring -->
+        <div class="countdown-ring-wrap" id="countdown-ring-wrap">
+          <svg class="countdown-ring" viewBox="0 0 44 44">
+            <circle class="ring-bg" cx="22" cy="22" r="18"/>
+            <circle class="ring-fill" id="ring-fill" cx="22" cy="22" r="18"
+              stroke-dasharray="113" stroke-dashoffset="0"/>
+          </svg>
+          <div class="countdown-ring-num" id="ring-num">5</div>
+        </div>
+
+        <!-- Sol Panel - Ayın En İyi Inspectörleri -->
+        <div class="slideshow-sidebar" id="slideshow-sidebar">
+          <div class="sidebar-header">
+            <div class="sidebar-title">🏆 AYIN EN İYİLERİ</div>
+            <div class="sidebar-subtitle">TOP 10 PERFORMANS</div>
+          </div>
+          <div id="top-inspectors-list">
+            <!-- Dinamik olarak doldurulacak -->
+          </div>
+        </div>
+
+        <!-- Ana İçerik Wrapper -->
+        <div class="slideshow-main-wrapper">
+          <!-- Header Bilgiler -->
+          <div class="slideshow-header">
+            <div class="slideshow-logo">
+              <div class="slideshow-logo-icon">LC</div>
+              <div class="slideshow-logo-text">
+                <div>Inspection</div>
+                <div>Performans Gösterimi</div>
+              </div>
+            </div>
+            <div class="slideshow-stats">
+              <div class="slideshow-stat">
+                <div class="slideshow-stat-value" id="slide-total-inspectors">0</div>
+                <div class="slideshow-stat-label">Inspector</div>
+              </div>
+              <div class="slideshow-stat">
+                <div class="slideshow-stat-value" id="slide-avg-performance">0%</div>
+                <div class="slideshow-stat-label" data-i18n="avg_perf_plain">Ort. Performans</div>
+              </div>
+              <div class="slideshow-stat">
+                <div class="slideshow-stat-value" id="slide-current-time">--:--</div>
+                <div class="slideshow-stat-label" data-i18n="current_time">Şu Anki Saat</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Özel Duyurular -->
+          <div class="slideshow-announcements" id="slideshow-announcements">
+            <div class="announcement-item active">
+              <span class="announcement-icon">🏆</span>
+              <span class="announcement-text" id="announcement-text" data-i18n="waiting_best_inspector">Ayın En İyi Inspector'ü bekleniyor...</span>
+            </div>
+          </div>
+
+          <!-- Ana Slayt Alanı -->
+          <div class="slideshow-main" id="slideshow-main">
+            <div class="slideshow-welcome">
+              <span class="welcome-icon">📺</span>
+              <h2 data-i18n="live_h2_title">Canlı Performans Gösterimi</h2>
+              <p data-i18n="live_h2_sub">Inspector performansını canlı takip edin</p>
+              <div class="welcome-stats">
+                <div class="welcome-stat">
+                  <div class="welcome-stat-value" id="welcome-total">0</div>
+                  <div class="welcome-stat-label" data-i18n="stat_total_inspector">Toplam Inspector</div>
+                </div>
+                <div class="welcome-stat">
+                  <div class="welcome-stat-value" id="welcome-avg">0%</div>
+                  <div class="welcome-stat-label" data-i18n="avg_perf_plain">Ortalama Performans</div>
+                </div>
+              </div>
+              <button class="welcome-start-btn" onclick="toggleSlideshow()">
+                <span data-i18n="start_slideshow">Gösterimi Başlat</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Alt Bilgi Çubuğu -->
+          <div class="slideshow-footer">
+            <div class="slideshow-progress">
+              <div class="slideshow-progress-bar" id="progress-bar"></div>
+            </div>
+            <div class="slideshow-footer-content">
+              <div class="slideshow-footer-left">
+                <span id="slide-counter" data-i18n="display_not_started">Gösterim başlamadı</span>
+              </div>
+              <div class="slideshow-footer-center">
+                <span id="slide-title">Inspection Performans Paneli</span>
+              </div>
+              <div class="slideshow-footer-right">
+                <span id="slide-date">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ KULLANICI YÖNETİMİ ══════════ -->
+    <div id="page-kullanicilar" class="page">
+      <div class="ph">
+        <div class="ph-left">
+          <h1 data-i18n="user_mgmt_title">👥 Kullanıcı Yönetimi</h1>
+          <p data-i18n="user_mgmt_sub">Kullanıcı ekleyin, düzenleyin ve hangi sekmeleri görebileceklerini belirleyin</p>
+        </div>
+        <div class="ph-buttons">
+          <button class="btn" onclick="loadAndRenderUsers()" id="users-refresh-btn">
+            🔄 <span data-i18n="refresh">Yenile</span>
+          </button>
+          <button class="btn btn-primary" onclick="openUserModal(null)">
+            ＋ <span data-i18n="add_user">Yeni Kullanıcı</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="overflow:hidden">
+        <div class="card-header" style="background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);border-bottom:none;padding:14px 16px">
+          <h2 style="color:#fff;gap:8px">
+            <span style="background:rgba(255,255,255,.12);border-radius:7px;padding:4px 7px;font-size:13px">👥</span>
+            <span data-i18n="user_list">Kullanıcılar</span>
+          </h2>
+          <span id="users-sayac" style="font-size:10px;color:rgba(255,255,255,.5);font-weight:500;background:rgba(255,255,255,.08);padding:3px 9px;border-radius:99px"></span>
+        </div>
+        <div class="card-body">
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead>
+                <tr style="text-align:left;border-bottom:2px solid var(--border2)">
+                  <th style="padding:8px 10px" data-i18n="username_col">Kullanıcı Adı</th>
+                  <th style="padding:8px 10px" data-i18n="tabs_col">Görebileceği Sekmeler</th>
+                  <th style="padding:8px 10px;text-align:right" data-i18n="actions_col">İşlemler</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="3" style="padding:18px;text-align:center;color:var(--muted)" data-i18n="loading">Yükleniyor…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top:10px;padding:10px 14px;background:var(--lblue3);border-radius:8px;border:1px solid var(--lblue);font-size:11px;color:var(--navy)">
+            ℹ️ <span data-i18n="user_mgmt_hint">Kullanıcılar admin şifresi yerine kendi kullanıcı adı/şifresi ile giriş yapar. Burada verilen sekmeler dışındaki bölümleri göremezler. Dashboard her kullanıcıya açıktır.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ KAYIP ZAMAN GİRİŞİ (Ekip Yöneticisi) ══════════ -->
+    <div id="page-kayip-zaman-ekip" class="page">
+      <div class="ph">
+        <div class="ph-left">
+          <h1>⏸️ Kayıp Zaman Girişi</h1>
+          <p>Çalışma saatlerini etkileyen kayıp süreleri girin — performans otomatik düzeltilir</p>
+        </div>
+        <div class="ph-buttons">
+          <button class="btn" onclick="loadKayipZamanEkip()">🔄 Yenile</button>
+        </div>
+      </div>
+
+      <!-- Giriş Formu -->
+      <div class="card" style="margin-bottom:16px;overflow:hidden">
+        <div class="card-header" style="background:linear-gradient(135deg,#B71C1C 0%,#D32F2F 100%);border-bottom:none;padding:14px 16px">
+          <h2 style="color:#fff;gap:8px">
+            <span style="background:rgba(255,255,255,.15);border-radius:7px;padding:4px 7px;font-size:13px">➕</span>
+            Yeni Kayıp Zaman Ekle
+          </h2>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px">
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Inspector</label>
+              <select id="kz-inspector" style="width:100%">
+                <option value="">— Inspector seçin —</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Tarih</label>
+              <input type="date" id="kz-tarih" style="width:100%" />
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Gün</label>
+              <input type="text" id="kz-gun" placeholder="Otomatik" readonly style="width:100%;background:var(--offwhite);color:var(--muted)" />
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Başlangıç Saati</label>
+              <input type="time" id="kz-baslangic" style="width:100%" />
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Bitiş Saati</label>
+              <input type="time" id="kz-bitis" style="width:100%" />
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Sebep</label>
+              <select id="kz-sebep" style="width:100%">
+                <option value="Sistemsel Hata">⚙️ Sistemsel Hata</option>
+                <option value="Ürün Olmaması">📦 Ürün Olmaması</option>
+                <option value="Elektrik Kesintisi">⚡ Elektrik Kesintisi</option>
+                <option value="Insp. Lokasyon Değişimi">📍 Insp. Lokasyon Değişimi</option>
+                <option value="Diğer">📝 Diğer</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Depo</label>
+              <select id="kz-depo" style="width:100%">
+                <option value="">— Depo seçin —</option>
+                <option value="Esenyurt Depo">🏭 Esenyurt Depo</option>
+                <option value="Titiz Depo">🏭 Titiz Depo</option>
+                <option value="Eroğlu Depo">🏭 Eroğlu Depo</option>
+                <option value="Yalova Depo">🏭 Yalova Depo</option>
+                <option value="Aksaray Depo">🏭 Aksaray Depo</option>
+                <option value="Silivri Depo">🏭 Silivri Depo</option>
+                <option value="Yılmaz Depo">🏭 Yılmaz Depo</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn btn-primary" onclick="saveKayipZaman()" id="kz-save-btn">
+              💾 Kayıp Zamanı Kaydet
+            </button>
+            <span id="kz-save-msg" style="font-size:12px;color:var(--green);display:none">✅ Kaydedildi!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ekip Performans Özeti (Nötr - Kayıp Belgelendi) -->
+      <div class="card" style="margin-bottom:16px;overflow:hidden">
+        <div class="card-header" style="padding:14px 16px;border-bottom:1px solid var(--border2)">
+          <h2>📊 Ekip Performans Özeti</h2>
+        </div>
+        <div class="card-body" id="kz-duzeltilmis-container">
+          <div class="empty" style="padding:30px">
+            <div class="empty-icon">📊</div>
+            <h3>Veri Bekleniyor</h3>
+            <p>Performans verisi gerekli</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Girilen Kayıp Zamanlar -->
+      <div class="card" style="overflow:hidden">
+        <div class="card-header" style="padding:14px 16px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">
+          <h2>📋 Girilen Kayıp Zamanlar</h2>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <select id="kz-filter-inspector" onchange="renderKayipZamanEkipListe()" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2)">
+              <option value="">Tüm Inspectorler</option>
+            </select>
+            <select id="kz-filter-sebep" onchange="renderKayipZamanEkipListe()" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border2)">
+              <option value="">Tüm Sebepler</option>
+              <option value="Sistemsel Hata">⚙️ Sistemsel Hata</option>
+              <option value="Ürün Olmaması">📦 Ürün Olmaması</option>
+              <option value="Elektrik Kesintisi">⚡ Elektrik Kesintisi</option>
+              <option value="Insp. Lokasyon Değişimi">📍 Insp. Lokasyon Değişimi</option>
+              <option value="Diğer">📝 Diğer</option>
+            </select>
+            <span id="kz-ekip-count" style="font-size:10px;color:var(--muted);background:var(--offwhite);padding:3px 9px;border-radius:99px"></span>
+            <button onclick="exportKayipZamanExcelEkip()" style="display:flex;align-items:center;gap:6px;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;border-radius:8px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer">
+              📊 Excel Olarak İndir
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="kz-ekip-liste" style="overflow-x:auto"></div>
+          <!-- Sayfalama -->
+          <div id="kz-ekip-pagination" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0 4px;flex-wrap:wrap;gap:8px"></div>
+          <!-- Toplam -->
+          <div id="kz-ekip-toplam" style="padding:10px 0 0;border-top:1px solid var(--border2);font-size:12px;color:var(--muted)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ KAYIP ZAMAN ANALİZİ (Admin) ══════════ -->
+    <div id="page-kayip-zaman-admin" class="page">
+      <div class="ph">
+        <div class="ph-left">
+          <h1>⏸️ Kayıp Zaman Analizi</h1>
+          <p>Tüm ekiplerin kayıp zaman kayıtları ve düzeltilmiş performanslar</p>
+        </div>
+        <div class="ph-buttons">
+          <button class="btn" onclick="forceRefreshKayipZamanAdmin()">🔄 Yenile</button>
+          <button class="btn" onclick="showKayipZamanRaporGorunumu()" style="background:var(--lblue3);color:var(--blue2);border-color:var(--lblue)">📄 Rapor Görünümü</button>
+          <button class="btn" onclick="showKayipZamanSebepPopup()" style="background:var(--lamber);color:var(--amber);border-color:var(--amber)">⚠️ Sebep Özeti</button>
+          <button class="btn" onclick="exportKayipZamanExcel()" style="background:#E8F5E9;color:#2E7D32;border-color:#A5D6A7">📊 Excel</button>
+        </div>
+      </div>
+
+      <!-- İlk/Son Kayıt Tarihi Şeridi -->
+      <div id="kz-tarih-ozet-bar"></div>
+
+      <!-- Özet Kartlar -->
+      <div id="kz-admin-ozet" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px"></div>
+
+      <!-- Sebep Bazında Özet + Çubuk Grafik (rapor estetiği) -->
+      <div id="kz-sebep-ozet-wrap"></div>
+
+      <!-- Ekip Dashboard Grid (yan yana kutular) -->
+      <div id="kz-ekip-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px;margin-bottom:20px"></div>
+
+      <!-- Detayli Inspector Tablosu (birlesik) -->
+      <div class="card" style="overflow:hidden">
+        <div class="card-header" style="background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);border-bottom:none;padding:14px 16px;flex-wrap:wrap;gap:8px">
+          <h2 style="color:#fff;gap:8px">
+            <span style="background:rgba(255,255,255,.12);border-radius:7px;padding:4px 7px;font-size:13px">📋</span>
+            Detayli Inspector Tablosu
+          </h2>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <select id="kz-admin-filter-ekip" onchange="_kzDetayPage=1;renderKayipZamanDetayliTablo()" style="font-size:12px;padding:5px 9px;border-radius:6px;border:1px solid var(--border2);background:#fff;color:var(--navy);min-width:140px">
+              <option value="">Tum Ekipler</option>
+            </select>
+            <select id="kz-admin-filter-inspector" onchange="_kzDetayPage=1;renderKayipZamanDetayliTablo()" style="font-size:12px;padding:5px 9px;border-radius:6px;border:1px solid var(--border2);background:#fff;color:var(--navy);min-width:160px">
+              <option value="">Tum Inspectorler</option>
+            </select>
+            <select id="kz-admin-filter-sebep" onchange="_kzDetayPage=1;renderKayipZamanDetayliTablo()" style="font-size:12px;padding:5px 9px;border-radius:6px;border:1px solid var(--border2);background:#fff;color:var(--navy);min-width:150px">
+              <option value="">Tum Sebepler</option>
+              <option value="Sistemsel Hata">&#9881; Sistemsel Hata</option>
+              <option value="Ürün Olmaması">📦 Ürün Olmaması</option>
+              <option value="Elektrik Kesintisi">&#9889; Elektrik Kesintisi</option>
+              <option value="Insp. Lokasyon Değişimi">&#128205; Insp. Lokasyon Değişimi</option>
+              <option value="Diğer">&#128221; Diğer</option>
+            </select>
+            <span id="kz-admin-count" style="font-size:10px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.2);padding:3px 9px;border-radius:99px;border:1px solid rgba(255,255,255,.3)"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="kz-admin-perf-table"></div>
+          <div style="margin-top:16px;border-top:1px solid var(--border2);padding-top:14px;display:flex;align-items:center;justify-content:flex-end">
+            <button onclick="exportKayipZamanExcel()" style="display:flex;align-items:center;gap:6px;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">
+              📊 Excel Olarak İndir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ TEKNİK İNCELEME (Yeni Modül) ══════════ -->
+    <div id="page-teknik-inceleme" class="page">
+      <div class="ph">
+        <div class="ph-left">
+          <h1>🧪 Teknik İnceleme</h1>
+          <p>Inspectörler için tanımlı kriterlere göre 1-5 arası puanlama yapın</p>
+        </div>
+        <div class="ph-buttons">
+          <button class="btn" onclick="loadTeknikInceleme()">🔄 Yenile</button>
+        </div>
+      </div>
+
+      <!-- Değerlendirme Formu -->
+      <div class="card" style="margin-bottom:16px;overflow:hidden">
+        <div class="card-header" style="background:linear-gradient(135deg,#4527A0 0%,#7B1FA2 100%);border-bottom:none;padding:14px 16px">
+          <h2 style="color:#fff;gap:8px">
+            <span style="background:rgba(255,255,255,.15);border-radius:7px;padding:4px 7px;font-size:13px">📝</span>
+            Değerlendirme Yap
+          </h2>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Tarih</label>
+              <input type="date" id="ti-tarih" style="width:100%" onchange="onTiTarihChange()" />
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Inspector</label>
+              <select id="ti-inspector" style="width:100%" onchange="updateTiTalepBilgisi()" disabled>
+                <option value="">— Önce tarih seçin —</option>
+              </select>
+            </div>
+          </div>
+          <div id="ti-tarih-filter-warn" style="display:none;margin-bottom:8px;padding:9px 12px;background:#FFF3E0;border:1px solid #FFB74D;border-radius:8px;font-size:11.5px;color:#E65100;line-height:1.5"></div>
+          <div id="ti-talep-info" style="display:none;margin-bottom:8px;padding:10px 12px;background:var(--lblue3);border:1px solid var(--lblue);border-radius:8px;font-size:12px;color:var(--navy)"></div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Talep No <span style="color:#C62828">*</span></label>
+            <input type="text" id="ti-talep-secili" list="ti-talep-datalist" placeholder="Yukarıdan bir Talep No'ya tıklayın ya da elle girin" style="width:100%" oninput="renderTeknikKriterForm()">
+            <datalist id="ti-talep-datalist"></datalist>
+          </div>
+          <div id="ti-kriter-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="kaydetTeknikInceleme()" id="ti-save-btn">💾 Değerlendirmeyi Kaydet</button>
+            <button class="btn" onclick="yazdirTeknikIncelemeSonucu()" id="ti-print-btn" style="background:var(--lblue3);color:var(--blue2);border-color:var(--lblue)">🖨️ Sonucu Yazdır</button>
+            <span id="ti-save-msg" style="font-size:12px;color:var(--green);display:none">✅ Kaydedildi!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inspector Skorları Özeti -->
+      <div class="card" style="margin-bottom:16px;overflow:hidden">
+        <div class="card-header" style="padding:14px 16px;border-bottom:1px solid var(--border2)">
+          <h2>📊 Teknik İnceleme Skorları</h2>
+        </div>
+        <div class="card-body">
+          <div id="ti-skor-ozet" style="overflow-x:auto"></div>
+        </div>
+      </div>
+
+      <!-- ═══ Admin: Kriter Yönetimi ═══ -->
+      <div id="ti-admin-wrap" style="display:none">
+        <div class="card" style="margin-bottom:16px;overflow:hidden">
+          <div class="card-header" onclick="toggleSection('ti-kriter-yonetim-body','ti-kriter-yonetim-chevron')"
+               style="cursor:pointer;user-select:none;padding:14px 16px;border-bottom:1px solid var(--border2)">
+            <h2>⚙️ Kriter Yönetimi (Admin)</h2>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:10px;color:var(--muted);font-weight:500">Göstermek için tıklayın</span>
+              <span id="ti-kriter-yonetim-chevron" style="font-size:14px;color:var(--muted);transition:transform .2s">▼</span>
+            </div>
+          </div>
+          <div id="ti-kriter-yonetim-body" style="display:none">
+            <div class="card-body">
+              <div id="ti-kriter-yonetim-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+              <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+                <input type="text" id="ti-kriter-yeni-input" placeholder="Yeni madde metni girin..." style="flex:1;min-width:200px" onkeydown="if(event.key==='Enter'){event.preventDefault();ekleTeknikKriter();}">
+                <input type="number" id="ti-kriter-yeni-puan" placeholder="Puan" min="0" step="1" style="width:90px">
+                <button class="btn" onclick="ekleTeknikKriter()">➕ Ekle</button>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+                <button class="btn" onclick="tiVarsayilanSorulariYukle()" style="background:var(--lblue3);color:var(--blue2);border-color:var(--lblue)">📥 Varsayılan Soruları Yükle (100 puanlık resmi form)</button>
+                <button class="btn" onclick="tiMukerrerKriterleriTemizle()" style="background:#FFF3E0;color:#E65100;border-color:#FFB74D">🧹 Mükerrerleri Temizle</button>
+              </div>
+              <button class="btn btn-primary" onclick="kaydetTeknikKriterler()" id="ti-kriter-save-btn">💾 Kriterleri Kaydet</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin: Tüm Kayıtlar -->
+        <div class="card" style="overflow:hidden">
+          <div class="card-header" style="padding:14px 16px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">
+            <h2>📋 Tüm Değerlendirme Kayıtları (Admin)</h2>
+            <button onclick="temizleTeknikIncelemeVerileri()" id="ti-clear-btn" style="background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">
+              🗑️ Temizle
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="ti-kayitlar-tablo" style="overflow-x:auto"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Sebep Özeti Popup -->
+<div class="modal-overlay" id="kz-sebep-popup" onclick="if(event.target===this)document.getElementById('kz-sebep-popup').style.display='none'">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title">⚠️ Kayıp Zaman — Sebep Özeti</div>
+    <div class="modal-sub">Sebep bazında toplam bekleme süreleri</div>
+    <div id="kz-sebep-popup-content" style="margin:16px 0"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('kz-sebep-popup').style.display='none'">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Klasman Süre Önerisi Popup (Admin) -->
+<div class="modal-overlay" id="klasman-sure-onerisi-popup" onclick="if(event.target===this)document.getElementById('klasman-sure-onerisi-popup').style.display='none'">
+  <div class="modal-box" style="max-width:640px;width:94vw;max-height:88vh;overflow-y:auto">
+    <div class="modal-title" id="klasman-sure-onerisi-title">📊 Süre Önerisi</div>
+    <div class="modal-sub" id="klasman-sure-onerisi-sub">Gerçekleşen veriye göre hedef süre önerileri</div>
+    <div id="klasman-sure-onerisi-content" style="margin:16px 0"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('klasman-sure-onerisi-popup').style.display='none'">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Performans Seviyesi Detay Popup -->
+<div class="modal-overlay" id="perf-seviye-popup" onclick="if(event.target===this)document.getElementById('perf-seviye-popup').style.display='none'">
+  <div class="modal-box" style="max-width:760px;width:94vw;max-height:88vh;overflow-y:auto">
+    <div class="modal-title" id="perf-seviye-popup-title">📊 Performans Seviyesi Detayı</div>
+    <div class="modal-sub" id="perf-seviye-popup-sub">Bu seviyedeki inspectorler</div>
+    <div id="perf-seviye-popup-content" style="margin:16px 0"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('perf-seviye-popup').style.display='none'">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kayıp Zaman Rapor Görünümü -->
+<div class="modal-overlay" id="kz-rapor-overlay" onclick="if(event.target===this)document.getElementById('kz-rapor-overlay').style.display='none'">
+  <div class="modal-box" style="max-width:980px;width:94vw;max-height:92vh;overflow-y:auto;padding:0">
+    <div id="kz-rapor-content"></div>
+    <div style="padding:14px 24px;border-top:1px solid var(--border2);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:#fff">
+      <button class="btn" onclick="window.print()">🖨️ Yazdır</button>
+      <button class="btn btn-primary" onclick="document.getElementById('kz-rapor-overlay').style.display='none'">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kullanıcı Ekle/Düzenle Modal -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title" id="user-modal-title">✨ Yeni Kullanıcı</div>
+    <div class="modal-sub" data-i18n="user_modal_hint">Kullanıcı adı, şifre ve görebileceği sekmeleri belirleyin</div>
+    <label style="margin-bottom:6px;display:block;font-weight:600;font-size:12px" data-i18n="username_label">Kullanıcı Adı</label>
+    <input type="text" id="user-modal-username" placeholder="ahmet.ornek" style="margin-bottom:12px" autocomplete="off">
+    <label style="margin-bottom:6px;display:block;font-weight:600;font-size:12px" data-i18n="password_label">Şifre</label>
+    <input type="password" id="user-modal-password" placeholder="••••••" style="margin-bottom:4px" autocomplete="new-password">
+    <div id="user-modal-pw-hint" style="font-size:10px;color:var(--muted);margin-bottom:12px" data-i18n="password_hint">En az 4 karakter</div>
+    <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;letter-spacing:.4px;text-transform:uppercase" data-i18n="select_tabs">Görebileceği Sekmeler</div>
+    <div id="user-modal-tabs" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--lblue3)"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeUserModal()" data-i18n="cancel_btn">İptal</button>
+      <button class="btn btn-primary" onclick="saveUserFromModal()" data-i18n="save_btn">💾 Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ekibimi Düzenle Modal -->
+<div class="modal-overlay" id="team-modal">
+  <div class="modal-box" style="max-width:480px;display:flex;flex-direction:column;max-height:80vh">
+    <div class="modal-title" data-i18n="team_modal_title">👥 Ekibimi Düzenle</div>
+    <div class="modal-sub" data-i18n="team_modal_sub">Takip etmek istediğiniz inspectorleri seçin</div>
+    <input type="text" id="team-modal-search" data-i18n-placeholder="team_search_ph" placeholder="Inspector ara..." oninput="renderTeamModalList()" style="margin-bottom:10px">
+    <div id="team-modal-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:8px;border:1px solid var(--border2);border-radius:8px;background:var(--lblue3);max-height:340px;margin-bottom:14px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeTeamModal()" data-i18n="cancel_btn">İptal</button>
+      <button class="btn btn-primary" onclick="saveTeamFromModal()" data-i18n="save_btn">💾 Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- Yeni Klasman Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title">✨ Yeni Klasman Ekle</div>
+    <div class="modal-sub" data-i18n="icon_modal_hint">Bir isim girin ve bir ikon seçin</div>
+    <input type="text" id="modal-input" placeholder="Klasman adı (örn: Gömlek, Pantolon…)" onkeydown="modalKey(event)" style="margin-bottom:14px;">
+    <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;letter-spacing:.4px;text-transform:uppercase;" data-i18n="select_icon">İkon Seç</div>
+    <div id="modal-icon-grid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-bottom:14px;max-height:200px;overflow-y:auto;padding:2px;"></div>
+    <input type="hidden" id="modal-icon-val" value="👔">
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--lblue3);border:1px solid var(--border2);border-radius:8px;margin-bottom:4px;">
+      <span id="modal-icon-preview" style="font-size:24px;">👔</span>
+      <span style="font-size:12px;color:var(--muted);" data-i18n="selected_icon">Seçilen ikon</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()" data-i18n="cancel_btn">İptal</button>
+      <button class="btn btn-primary" onclick="addKlasman()">Ekle</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inspector Detay Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-box" style="max-width:960px;">
+    <div class="modal-title" id="detail-modal-title" data-i18n="inspector_detail_title">Inspector Detayları</div>
+    <div class="modal-sub" data-i18n="inspector_detail_sub">Klasman bazında detaylı performans analizi</div>
+    <div id="detail-modal-content"></div>
+    <div class="modal-actions">
+      <button class="btn btn-success" onclick="exportInspectorDetail()" data-i18n="download_excel">📊 Download Excel</button>
+      <button class="btn" onclick="closeDetailModal()">Kapat</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app-shell -->
+
+<script src="panel2.js"></script>
+<script src="panel.js"></script>
+
+<!-- ══════════════════════════════════════════════════════════
+     ANALİZ TAM EKRAN OVERLAY
+     ══════════════════════════════════════════════════════════ -->
+<div id="analiz-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:#F4F8FF;overflow-y:auto;font-family:'DM Sans',sans-serif;">
+
+  <!-- Header Bar -->
+  <div id="analiz-overlay-header" style="position:sticky;top:0;z-index:100;background:linear-gradient(135deg,#0B1F3A 0%,#1565C0 100%);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 16px rgba(0,0,0,.3);">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <button id="analiz-geri-btn" onclick="closeAnalizOverlay()" style="display:flex;align-items:center;gap:7px;padding:8px 16px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">
+        ← Geri
+      </button>
+      <div>
+        <div id="analiz-overlay-title" style="font-size:16px;font-weight:700;letter-spacing:-.2px;"></div>
+        <div style="font-size:11px;opacity:.65;margin-top:2px;" data-i18n="klasman_analiz_overlay_sub">Klasman bazında detaylı performans analizi</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button id="ao-refresh-btn" onclick="aoRefreshSheetsData()" style="padding:7px 14px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.22)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">🔄 Veri Çek</button>
+   <div style="position:relative;">
+  <button id="gunluk-popup-btn" onclick="toggleGunlukPopup()" style="padding:7px 14px;background:rgba(21,101,192,0.85);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s;" onmouseover="this.style.background='#1565C0'" onmouseout="this.style.background='rgba(21,101,192,0.85)'">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Günlük Detay
+    <span id="gunluk-popup-chevron" style="font-size:10px;transition:transform .3s;">▶</span>
+  </button>
+
+  <div id="gunluk-popup-card" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:560px;max-width:90vw;background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:200;animation:otSlideIn .3s cubic-bezier(.4,0,.2,1);">
+    <!-- Header -->
+    <div style="background:#1565C0;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:8px;color:#fff;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+         Günlük Üretim & Mesai Detayı
+        <span id="gunluk-gun-sayisi" style="font-size:11px;font-weight:500;background:rgba(255,255,255,.18);padding:2px 9px;border-radius:99px;margin-left:6px;">—</span>
+      </div>
+      <button onclick="toggleGunlukPopup()" style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:0;background:#f8f9fa;max-height:360px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;font-family:'DM Sans',sans-serif;">
+        <thead style="position:sticky;top:0;z-index:5;">
+          <tr style="background:#eef2f7;">
+            <th style="padding:8px 10px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">Tarih</th>
+            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">Toplam Adet</th>
+            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">Normal Saatte</th>
+            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">Overtime'da</th>
+            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;">OT Süresi</th>
+          </tr>
+        </thead>
+        <tbody id="gunluk-tablo-body"></tbody>
+      </table>
+    </div>
+    <div style="padding:8px 14px;font-size:10px;color:#9ca3af;background:#fff;border-top:0.5px solid #e5e7eb;">
+      Normal saat: 08:00–16:45 · Overtime: 16:45–20:00 · Adetler kayıt süresine göre orantılı bölünmüştür
+    </div>
+  </div>
+</div>
+      <div style="position:relative;">
+  <button id="ot-popup-btn" onclick="toggleOtPopup()" style="padding:7px 14px;background:rgba(232,93,47,0.85);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;transition:background .15s;" onmouseover="this.style.background='#D85A30'" onmouseout="this.style.background='rgba(232,93,47,0.85)'">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M12 2v2M2 12h2M12 22v-2M22 12h-2" stroke-width="1.5" opacity=".5"/></svg>
+    Overtime
+    <span id="ot-popup-chevron" style="font-size:10px;transition:transform .3s;">▶</span>
+  </button>
+
+  <div id="ot-popup-card" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:300px;background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:200;animation:otSlideIn .3s cubic-bezier(.4,0,.2,1);">
+    <!-- Header -->
+    <div style="background:#D85A30;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:8px;color:#fff;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Overtime Özeti
+      </div>
+      <button onclick="toggleOtPopup()" style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:14px;display:flex;flex-direction:column;gap:10px;background:#f8f9fa;">
+      <!-- Overtime Toplam Süresi -->
+      <div style="background:#fff;border-radius:8px;border:0.5px solid #e5e7eb;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;border-radius:8px;background:#FAECE7;display:flex;align-items:center;justify-content:center;color:#993C1D;font-size:17px;">⏰</div>
+          <div>
+            <div style="font-size:11px;color:#6b7280;display:block;margin-bottom:2px;">Overtime toplam süresi</div>
+            <div id="ot-sure-val" style="font-size:18px;font-weight:500;color:#111827;display:block;line-height:1;">—</div>
+          </div>
+        </div>
+        <span id="ot-sure-badge" style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:99px;background:#FAECE7;color:#712B13;">—</span>
+      </div>
+      <!-- OT'de Kontrol Edilen Adet -->
+      <div style="background:#fff;border-radius:8px;border:0.5px solid #e5e7eb;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;color:#1d4ed8;font-size:17px;">📦</div>
+          <div>
+            <div style="font-size:11px;color:#6b7280;display:block;margin-bottom:2px;">OT'de kontrol edilen adet</div>
+            <div id="ot-adet-val" style="font-size:18px;font-weight:500;color:#111827;display:block;line-height:1;">—</div>
+          </div>
+        </div>
+        <span id="ot-adet-badge" style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:99px;background:#eff6ff;color:#1e40af;">—</span>
+      </div>
+      <!-- Verimlilik Oranı -->
+      <div style="background:#fff;border-radius:8px;border:0.5px solid #e5e7eb;padding:11px 14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:34px;height:34px;border-radius:8px;background:#FAECE7;display:flex;align-items:center;justify-content:center;color:#993C1D;font-size:17px;">📊</div>
+            <div>
+              <div style="font-size:11px;color:#6b7280;display:block;margin-bottom:2px;">Genel Performans</div>
+              <div id="ot-verim-val" style="font-size:18px;font-weight:500;color:#D85A30;display:block;line-height:1;">—</div>
+            </div>
+          </div>
+        </div>
+        <div style="height:6px;background:#f3f4f6;border-radius:99px;overflow:hidden;">
+          <div id="ot-verim-bar" style="height:100%;border-radius:99px;background:#D85A30;width:0;transition:width .7s cubic-bezier(.4,0,.2,1) .1s;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:5px;">
+          <span id="ot-label-mesai" style="font-size:10px;color:#9ca3af;">Mesai: —</span>
+          <span id="ot-label-std" style="font-size:10px;color:#9ca3af;">Standart: —</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <button onclick="window.print()" style="padding:7px 14px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;" data-i18n="print_btn">🖨️ Print</button>
+      <button onclick="exportInspectorDetailFromOverlay()" style="padding:7px 14px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;">📊 Excel</button>
+      <button onclick="aoGeneratePdfAndMail()" id="ao-pdf-btn" style="padding:7px 14px;background:linear-gradient(135deg,#C62828,#E53935);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;font-weight:600;">&#128196; PDF &amp; Mail</button>
+    </div>
+  </div>
+
+  <!-- İçerik -->
+  <div style="max-width:1400px;margin:0 auto;padding:24px 28px;">
+
+    <!-- Stats Grid -->
+    <div id="ao-stats-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;"></div>
+
+    <!-- ══ EN FAZLA KONTROL EDİLEN KLASMANLAR ══ -->
+    <div id="ao-top20-wrap" style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#1565C0,#0d47a1);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">🏆</div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#0B1F3A;letter-spacing:-.2px;">En Fazla Kontrol Edilen Klasmanlar</div>
+            <div style="font-size:10px;color:#5A7FA8;margin-top:1px;">Adet bazında sıralanmış · Bu çalışanın kayıtlarından</div>
+          </div>
+        </div>
+        <button id="ao-top20-toggle-btn" onclick="aoTop20Toggle()" style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:#EEF7FF;color:#1565C0;border:1px solid #BBDEFB;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;transition:background .15s;" onmouseover="this.style.background='#DDEEFF'" onmouseout="this.style.background='#EEF7FF'">
+          <span id="ao-top20-toggle-icon">▼</span>
+          <span id="ao-top20-toggle-label">Tümünü Görüntüle</span>
+        </button>
+      </div>
+      <div id="ao-top20-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;"></div>
+    </div>
+    <!-- ══ GEMİNİ AI BÖLÜMÜ ══ -->
+    <div id="ao-gemini-wrap" style="margin-bottom:24px;">
+      <!-- Toggle Bar -->
+      <div id="ao-gemini-bar" onclick="aoGeminiToggle()" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#0B1F3A 0%,#1565C0 60%,#0d47a1 100%);color:#fff;padding:14px 20px;border-radius:12px;cursor:pointer;user-select:none;box-shadow:0 4px 20px rgba(21,101,192,.35);transition:box-shadow .2s,border-radius .25s;position:relative;overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:12px;z-index:1;">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">✨</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;letter-spacing:-.2px;">Gemini AI Performans Analizi</div>
+            <div style="font-size:11px;opacity:.65;margin-top:1px;" data-i18n="ai_panel_hint">AI destekli detaylı analiz · Açmak için tıklayın</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;z-index:1;">
+          <span id="ao-gemini-badge" style="font-size:10px;font-weight:600;letter-spacing:.6px;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);text-transform:uppercase;" data-i18n="closed_label">Kapalı</span>
+          <span id="ao-gemini-chevron" style="font-size:18px;transition:transform .3s;">›</span>
+        </div>
+        <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.04);pointer-events:none;"></div>
+      </div>
+
+      <!-- Gemini Panel -->
+      <div id="ao-gemini-panel" style="display:none;background:#fff;border:1px solid #DDEEFF;border-top:none;border-radius:0 0 12px 12px;overflow:hidden;box-shadow:0 8px 24px rgba(21,101,192,.12);">
+
+        <!-- API Key -->
+        <div style="background:linear-gradient(135deg,#EEF7FF,#fff);padding:18px 20px;border-bottom:1px solid #DDEEFF;">
+          <div style="display:flex;align-items:flex-start;gap:14px;">
+            <div style="width:38px;height:38px;border-radius:10px;flex-shrink:0;background:#1565C0;display:flex;align-items:center;justify-content:center;font-size:16px;">🔑</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;color:#0B1F3A;margin-bottom:4px;" data-i18n="gemini_api_key">Gemini API Key</div>
+              <div style="font-size:11px;color:#5A7FA8;margin-bottom:10px;line-height:1.6;">API anahtarınızı aşağıya girin. Anahtar bu tarayıcıda güvenli şekilde saklanır.
+                <span style="color:#E65100;font-weight:600;" data-i18n="api_key_warning">⚠️ Anahtarınızı başkalarıyla paylaşmayın.</span></div>
+              <div style="background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:11px;color:#795548;display:flex;align-items:flex-start;gap:8px;">
+                <span style="font-size:14px;flex-shrink:0;">🛡️</span>
+                <span><strong data-i18n="security_warning">Güvenlik Uyarısı:</strong> API anahtarınız yalnızca bu sayfada kullanılır ve tarayıcı localStorage'ında saklanır.</span>
+              </div>
+              <!-- Model Seçici -->
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 12px;background:#EEF7FF;border:1px solid #BBDEFB;border-radius:8px;">
+                <span style="font-size:11px;font-weight:600;color:#1565C0;white-space:nowrap;">🤖 Model:</span>
+               <select id="ao-gmodel" style="flex:1;padding:5px 10px;border:1px solid #CFE3F7;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;color:#0B1F3A;background:#fff;">
+  <option value="gemini-2.5-flash" data-i18n="gemini_flash">gemini-2.5-flash (Recommended)</option>
+  <option value="gemini-2.5-pro" data-i18n="gemini_pro">gemini-2.5-pro (Most Powerful)</option>
+  <option value="gemini-2.0-flash-lite" data-i18n="gemini_lite">gemini-2.0-flash-lite (Free / Fast)</option>
+  <option value="gemini-1.5-flash">gemini-1.5-flash (Eski / Stabil)</option>
+  <option value="gemini-1.5-flash-8b" data-i18n="gemini_8b">gemini-1.5-flash-8b (Fastest)</option>
+</select>
+                <span style="font-size:10px;color:#5A7FA8;white-space:nowrap;" data-i18n="try_other_model">Hata alırsan farklı model dene</span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <div style="position:relative;flex:1;">
+                  <input type="password" id="ao-gkey" placeholder="AIzaSy..." style="width:100%;padding:9px 40px 9px 12px;border:1px solid #CFE3F7;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:#fff;color:#0B1F3A;outline:none;box-sizing:border-box;">
+                  <button id="ao-gkey-eye" onclick="aoGkeyToggleEye()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:#5A7FA8;padding:0;">👁</button>
+                </div>
+                <button onclick="aoGkeySave()" style="padding:9px 18px;background:#1565C0;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;white-space:nowrap;">💾 Kaydet</button>
+                <button onclick="aoGkeyDelete()" style="padding:9px 14px;background:#fff;color:#C62828;border:1px solid #FFCDD2;border-radius:8px;cursor:pointer;font-size:12px;">🗑</button>
+              </div>
+              <div id="ao-gkey-status" style="margin-top:7px;font-size:11px;height:16px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hızlı Analizler -->
+        <div style="padding:16px 20px;border-bottom:1px solid #DDEEFF;background:#F9FBFF;">
+          <div style="font-size:11px;font-weight:700;color:#5A7FA8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;" data-i18n="quick_analyses">⚡ Quick Analyses</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <button onclick="aoCallGeminiQuick('genel')"   style="padding:8px 14px;background:#EEF7FF;color:#1565C0;border:1px solid #BBDEFB;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;" data-i18n="ai_general">📊 General Performance Evaluation</button>
+            <button onclick="aoCallGeminiQuick('guclu')"   style="padding:8px 14px;background:#E8F5E9;color:#2E7D32;border:1px solid #C8E6C9;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;" data-i18n="ai_strengths">💪 Strengths/Weaknesses</button>
+            <button onclick="aoCallGeminiQuick('trend')"   style="padding:8px 14px;background:#FFF3E0;color:#E65100;border:1px solid #FFCC80;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;">📈 Zaman &amp; Trend Analizi</button>
+            <button onclick="aoCallGeminiQuick('klasman')" style="padding:8px 14px;background:#F3E5F5;color:#6A1B9A;border:1px solid #CE93D8;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;" data-i18n="ai_klasman_compare">👔 Comparison by Classification</button>
+            <button onclick="aoCallGeminiQuick('oneri')"   style="padding:8px 14px;background:#E0F7FA;color:#00695C;border:1px solid #80DEEA;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;" data-i18n="ai_improve">💡 Improvement Suggestions</button>
+            <button onclick="aoCallGeminiQuick('mesai')"   style="padding:8px 14px;background:#FCE4EC;color:#AD1457;border:1px solid #F48FB1;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;" data-i18n="ai_overtime">🌙 Mesai & Yoğunluk Analizi</button>
+          </div>
+        </div>
+
+        <!-- Özel Soru -->
+        <div style="padding:16px 20px;border-bottom:1px solid #DDEEFF;background:#fff;">
+          <div style="font-size:11px;font-weight:700;color:#5A7FA8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;" data-i18n="ai_custom_q">💬 Ask a Custom Question</div>
+          <div style="display:flex;gap:8px;">
+            <textarea id="ao-gcustom" placeholder="Bu çalışanın performansını nasıl değerlendirirsin?..." style="flex:1;min-height:70px;padding:10px 14px;border:1px solid #CFE3F7;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;color:#0B1F3A;background:#FAFCFF;resize:vertical;outline:none;line-height:1.6;" onkeydown="if(event.ctrlKey&&event.key==='Enter'){aoCallGeminiCustom();}"></textarea>
+            <button onclick="aoCallGeminiCustom()" style="padding:10px 18px;background:linear-gradient(135deg,#1565C0,#0d47a1);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;align-self:flex-end;white-space:nowrap;" data-i18n="send_btn">Send ↵</button>
+          </div>
+          <div style="font-size:10px;color:#8AAAC8;margin-top:5px;" data-i18n="send_hint">Ctrl+Enter ile de gönderebilirsiniz</div>
+        </div>
+
+        <!-- Sonuç -->
+        <div id="ao-gresult" style="display:none;padding:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:6px;height:6px;border-radius:50%;background:#1565C0;"></div>
+              <div id="ao-gresult-title" data-i18n="analysis_result" style="font-size:12px;font-weight:700;color:#0B1F3A;">Analiz Sonucu</div>
+            </div>
+            <button id="ao-gclear" onclick="aoClearResult()" style="padding:4px 12px;background:#fff;color:#5A7FA8;border:1px solid #CFE3F7;border-radius:6px;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;" data-i18n="clear_btn">✕ Temizle</button>
+          </div>
+          <div id="ao-gloading" style="display:none;text-align:center;padding:30px 0;">
+            <div style="width:40px;height:40px;border-radius:50%;margin:0 auto 12px;border:3px solid #BBDEFB;border-top-color:#1565C0;animation:ao-gspin 0.8s linear infinite;"></div>
+            <div data-i18n="gemini_analyzing" style="font-size:13px;color:#5A7FA8;">Gemini analiz ediyor...</div>
+          </div>
+          <div id="ao-goutput" style="display:none;background:linear-gradient(135deg,#F4F8FF,#fff);border:1px solid #DDEEFF;border-radius:10px;padding:20px;font-size:13px;color:#0B1F3A;line-height:1.8;white-space:pre-wrap;font-family:'DM Sans',sans-serif;min-height:60px;"></div>
+        </div>
+
+        <!-- Hata -->
+        <div id="ao-gerror" style="display:none;padding:16px 20px;">
+          <div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:8px;padding:12px 16px;font-size:12px;color:#C62828;display:flex;gap:10px;align-items:flex-start;">
+            <span style="font-size:16px;flex-shrink:0;">⚠️</span>
+            <span id="ao-gerror-msg"></span>
+          </div>
+        </div>
+
+      </div><!-- /ao-gemini-panel -->
+    </div><!-- /ao-gemini-wrap -->
+
+    <!-- Filtre Çubuğu -->
+    <div style="background:#fff;border:1px solid #DDEEFF;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;" class="no-print">
+      <span style="font-size:11px;font-weight:700;color:#5A7FA8;text-transform:uppercase;letter-spacing:.6px;">🔍 <span data-i18n="filter_search">Inspector Ara:</span></span>
+      <label style="font-size:11px;color:#5A7FA8;display:flex;align-items:center;gap:6px;"><span data-i18n="filter_klasman">Klasman Filtresi:</span>
+        <select id="ao-f-klasman" onchange="aoApplyFilters()" style="padding:6px 10px;border:1px solid #CFE3F7;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;min-width:130px;"><option value="" data-i18n="all_btn">All</option></select>
+      </label>
+      <label style="font-size:11px;color:#5A7FA8;display:flex;align-items:center;gap:6px;"><span data-i18n="start_date_th">Başlangıç</span>:
+        <select id="ao-f-tarih" onchange="aoApplyFilters()" style="padding:6px 10px;border:1px solid #CFE3F7;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;">
+          <option value="" data-i18n="all_btn">All</option><option value="withdate" data-i18n="date_filter_with">Tarihi Olanlar</option><option value="nodate" data-i18n="date_filter_without">Tarihi Olmayanlar</option>
+        </select>
+      </label>
+      <label style="font-size:11px;color:#5A7FA8;display:flex;align-items:center;gap:6px;"><span data-i18n="total_qty">Toplam Adet</span>:
+        <input id="ao-f-minadet" type="number" min="0" value="0" oninput="aoApplyFilters()" style="width:65px;padding:6px 10px;border:1px solid #CFE3F7;border-radius:7px;font-size:12px;">
+      </label>
+      <label style="font-size:11px;color:#5A7FA8;display:flex;align-items:center;gap:6px;"><span data-i18n="sort_label">Sort:</span>
+        <select id="ao-f-sort" onchange="aoApplyFilters()" style="padding:6px 10px;border:1px solid #CFE3F7;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;">
+          <option value="" data-i18n="default_opt">Varsayılan</option><option value="adet-desc" data-i18n="sort_qty_desc">Adet (Çok→Az)</option><option value="adet-asc" data-i18n="sort_qty_asc">Adet (Az→Çok)</option>
+          <option value="ort-desc" data-i18n="sort_diff_worst">Diff ↓ (Worst)</option><option value="tarih-asc" data-i18n="sort_by_date">By Date ↑</option>
+        </select>
+      </label>
+      <button onclick="aoResetFilters()" style="padding:6px 14px;border:1px solid #CFE3F7;border-radius:7px;font-size:11px;background:#fff;cursor:pointer;color:#5A7FA8;">↺ Sıfırla</button>
+      <span id="ao-f-summary" style="margin-left:auto;font-size:11px;color:#5A7FA8;font-family:'DM Mono',monospace;"></span>
+    </div>
+
+    <!-- Tablo -->
+    <div style="background:#fff;border:1px solid #DDEEFF;border-radius:10px;overflow:hidden;margin-bottom:16px;">
+      <div style="overflow-x:auto;max-height:60vh;overflow-y:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:900px;">
+          <thead style="position:sticky;top:0;z-index:10;">
+            <tr style="background:#0B1F3A;color:#fff;">
+              <th style="padding:10px 12px;text-align:center;font-size:11px;width:40px;">#</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;">Talep No</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;">Klasman</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;">Adet</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;">Kontrol Süresi<br><span style="opacity:.6;font-weight:400">(sn/adet)</span></th>
+              <th style="padding:10px 12px;text-align:right;font-size:11px;" data-i18n="std_duration_th">Standart Süre</th>
+              <th style="padding:10px 12px;text-align:right;font-size:11px;" data-i18n="actual_duration_th">Gerçekleşen Süre</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;">Ort. Kontrol<br><span style="opacity:.6;font-weight:400">(sn/adet)</span></th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;" data-i18n="start_date_th">Başlangıç</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;" data-i18n="end_date_th">Bitiş</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;">Oran<br><span style="opacity:.6;font-weight:400">(Std./Ger.)</span></th>
+              <th style="padding:10px 12px;text-align:center;font-size:10px;opacity:.75;font-weight:400;">Inspection Tipi</th>
+            </tr>
+          </thead>
+          <tbody id="ao-tablo-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Not -->
+    <div style="margin-bottom:20px;padding:10px 14px;background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;font-size:10px;color:#5A7FA8;line-height:1.8;" class="no-print">
+      <strong style="color:#F57F17;">ℹ️</strong>
+      Standart = (Kontrol Süresi × Adet) + İstasyon &nbsp;|&nbsp;
+      Gerçekleşen = Başlangıç–Bitiş farkı &nbsp;|&nbsp;
+      Ort. Kontrol = Gerçekleşen ÷ Adet &nbsp;|&nbsp;
+      Oran = Standart ÷ Gerçekleşen × 100 &nbsp;|&nbsp;
+      <span style="color:#00897B;">✓ hedef</span> = Ort. ≤ Standart kontrol süresi
+    </div>
+
+
+  </div><!-- /max-width container -->
+</div><!-- /analiz-overlay -->
+
+
+</body>
+</html>
