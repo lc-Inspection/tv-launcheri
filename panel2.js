@@ -205,7 +205,16 @@ function _aoRenderStats() {
   var totalAdet  = _aoData.reduce(function(s,k){ return s + k.adet; }, 0);
   var totalStd   = _aoData.reduce(function(s,k){ return s + k.standartSure; }, 0);
   var totalFiili = _aoData.reduce(function(s,k){ return s + k.kayitFiiliSure; }, 0);
-  var hamPerf    = _aoInspector.genelHizPerf || 0;
+  // "Ne ödül ne ceza": nötr kayıp zaman mesai süresinden düşülüp performans
+  // buna göre hesaplanır — Dashboard/getDispPerf ile aynı mantık, aksi halde
+  // bu detay sayfası farklı (eski) bir yüzde gösterir.
+  var standartSnAo = _aoInspector.standartSure || 0;
+  var mesaiSnAo = _aoInspector.mesaiSure || 0;
+  var notrKayipSnAo = (typeof getNotrKayipDakikaForInspector === 'function')
+    ? getNotrKayipDakikaForInspector(_aoInspector.ins) * 60 : 0;
+  if (notrKayipSnAo > 0 && mesaiSnAo > notrKayipSnAo) mesaiSnAo -= notrKayipSnAo;
+  var hamPerf    = (standartSnAo > 0 && mesaiSnAo > 0)
+    ? Math.round((standartSnAo / mesaiSnAo) * 100) : (_aoInspector.genelHizPerf || 0);
   var duzPerf    = Math.round(hamPerf * (100 / _aoHedef));
   var overtimeDk = Math.round((_aoInspector.toplamMesaistiSaniye || 0) / 60);
 
@@ -499,7 +508,12 @@ function _aoDataSummary() {
   var totalAdet  = _aoData.reduce(function(s,k){ return s+k.adet; }, 0);
   var totalStd   = _aoData.reduce(function(s,k){ return s+k.standartSure; }, 0);
   var totalFiili = _aoData.reduce(function(s,k){ return s+k.kayitFiiliSure; }, 0);
-  var duzPerf    = Math.round((_aoInspector.genelHizPerf||0) * (100 / _aoHedef));
+  var _stdSn = _aoInspector.standartSure || 0;
+  var _mesSn = _aoInspector.mesaiSure || 0;
+  var _kzSn = (typeof getNotrKayipDakikaForInspector === 'function') ? getNotrKayipDakikaForInspector(_aoInspector.ins) * 60 : 0;
+  if (_kzSn > 0 && _mesSn > _kzSn) _mesSn -= _kzSn;
+  var _hamP = (_stdSn > 0 && _mesSn > 0) ? Math.round((_stdSn / _mesSn) * 100) : (_aoInspector.genelHizPerf || 0);
+  var duzPerf    = Math.round(_hamP * (100 / _aoHedef));
   var mesaiDk    = Math.round((_aoInspector.toplamMesaistiSaniye||0) / 60);
   var gruplar = {};
   _aoData.forEach(function(k) {
@@ -525,7 +539,7 @@ function _aoDataSummary() {
     +'Gerçekleşen Süre: '+(totalFiili>0?_aoFmtSn(totalFiili):'Veri yok')+'\n'
     +'Mesai Süresi: '+_aoFmtSn(_aoInspector.mesaiSure||0)+(mesaiDk>0?' (Mesai üstü: '+mesaiDk+'dk)':'')+'\n'
     +'Düzeltilmiş Performans: '+duzPerf+'% (Hedef: '+_aoHedef+'%)\n'
-    +'Ham Hız Performansı: '+Math.round(_aoInspector.genelHizPerf||0)+'%\n\n'
+    +'Ham Hız Performansı: '+Math.round(_hamP)+'%\n\n'
     +'Klasman Bazlı Özet:\n'+kLines
     +'Toplam Klasman Sayısı: '+Object.keys(gruplar).length+'\n'
     +'Tarihli Kayıt: '+_aoData.filter(function(k){return k.tarihGecerli;}).length+'\n'
@@ -1073,7 +1087,12 @@ async function aoGeneratePdfAndMail() {
     var insp      = _aoInspector;
     var data      = _aoData || [];
     var hedef     = _aoHedef || 100;
-    var duzPerf   = Math.round((insp.genelHizPerf||0) * (100/hedef));
+    var _stdSnP = insp.standartSure || 0;
+    var _mesSnP = insp.mesaiSure || 0;
+    var _kzSnP = (typeof getNotrKayipDakikaForInspector === 'function') ? getNotrKayipDakikaForInspector(insp.ins) * 60 : 0;
+    if (_kzSnP > 0 && _mesSnP > _kzSnP) _mesSnP -= _kzSnP;
+    var _hamPP = (_stdSnP > 0 && _mesSnP > 0) ? Math.round((_stdSnP / _mesSnP) * 100) : (insp.genelHizPerf || 0);
+    var duzPerf   = Math.round(_hamPP * (100/hedef));
     var totalAdet = data.reduce(function(s,k){ return s+(k.adet||0); },0);
     var totalStd  = data.reduce(function(s,k){ return s+(k.standartSure||0); },0);
     var totalFiil = data.reduce(function(s,k){ return s+(k.kayitFiiliSure||0); },0);
