@@ -3405,10 +3405,49 @@ function getPerformanceClass(performans) {
 
 // Gösterim için kullanılacak performans değeri:
 // Eğer verimlilikPerf varsa (Düz. Performans) onu, yoksa genelHizPerf'i döner
+// ── "Ne Ödül Ne Ceza" — Nötr Kayıp Zaman Sebepleri ──────────────────────
+// Bu sebeplerden kaynaklanan kayıp zaman, Mesai Süresi'nden (performans
+// paydasından) düşülür — inspector'ın kontrolü dışında olduğu için ne
+// performansını yapay olarak yükseltir ne de cezalandırır, sadece hesap
+// dışı bırakılır. "Sistemsel Hata" ve "Elektrik Kesintisi" BİLEREK dışarıda
+// bırakıldı (kullanıcı talebiyle) — bu ikisi performansı etkilemeye
+// (düşürmeye) devam eder.
+const NOTR_KAYIP_SEBEPLERI = ['Ürün Olmaması', 'Insp. Lokasyon Değişimi', 'Diğer'];
+
+function getNotrKayipDakikaForInspector(inspectorName) {
+  const nameNorm = String(inspectorName || '').toLowerCase().trim();
+  return kayipZamanData
+    .filter(r => String(r.inspector || '').toLowerCase().trim() === nameNorm && NOTR_KAYIP_SEBEPLERI.includes(r.sebep))
+    .reduce((sum, r) => sum + (r.sureDk || 0), 0);
+}
+
+// Ekranda gösterilen TEK performans değeri — artık "ne ödül ne ceza" ilkesini
+// içeriyor: yukarıdaki nötr sebeplerden kaynaklanan kayıp zaman, mesai
+// süresinden düşülüp performans BUNA GÖRE yeniden (canlı) hesaplanıyor. Bu
+// sayede Excel'den SONRA girilen kayıp zaman kayıtları da anında yansır ve
+// aynı düşüm başka hiçbir yerde tekrar uygulanmaz (double-counting olmaz) —
+// performansHesapla() kasıtlı olarak kayıp zamandan bağımsız/ham tutulur
+// (bkz. oradaki not), düzeltme SADECE burada yapılır.
 function getDispPerf(inspector) {
-  return (inspector.verimlilikPerf !== null && inspector.verimlilikPerf !== undefined)
+  const standartSn = inspector.standartSure || 0;
+  let mesaiSn = inspector.mesaiSure || 0;
+  const statikDeger = (inspector.verimlilikPerf !== null && inspector.verimlilikPerf !== undefined)
     ? inspector.verimlilikPerf
     : (inspector.genelHizPerf ?? 0);
+
+  if (!standartSn || !mesaiSn) return statikDeger;
+
+  const notrKayipSn = getNotrKayipDakikaForInspector(inspector.ins) * 60;
+  if (notrKayipSn > 0 && mesaiSn > notrKayipSn) {
+    mesaiSn -= notrKayipSn;
+  } else if (notrKayipSn === 0) {
+    // Kayıp zaman yoksa statik (performansHesapla'dan gelen) değeri aynen kullan
+    // — yuvarlama farklarıyla gereksiz tutarsızlık oluşmasın.
+    return statikDeger;
+  }
+
+  const hedef = inspector.hedefVerimlilik || 100;
+  return Math.round((standartSn / mesaiSn) * 100 * (100 / hedef));
 }
 
 function getProgressColor(performans) {
@@ -4000,14 +4039,26 @@ function filterInspectors() {
   const sortOrder = document.getElementById('sort-order').value;
 
   const hedefF = Math.max(1, parseFloat(document.getElementById('inp-verimlilik')?.value) || 100);
-  let filtered = [...performansData.map(inspector => ({
-    ...inspector,
-    performans: inspector.verimlilikPerf !== null && inspector.verimlilikPerf !== undefined
-      ? inspector.verimlilikPerf
-      : (inspector.genelHizPerf !== null && inspector.genelHizPerf !== undefined
-          ? Math.round(inspector.genelHizPerf * (100 / hedefF))
-          : 0)
-  }))];
+  let filtered = [...performansData.map(inspector => {
+    // "Ne ödül ne ceza": nötr sebeplerden kaynaklanan kayıp zaman mesai
+    // süresinden düşülüp performans buna göre yeniden hesaplanır — bkz.
+    // renderDashboard kart hesabı ve getDispPerf ile aynı mantık, böylece
+    // üstteki özet sayaçlar (Mükemmel/İyi/Orta/Zayıf) ve filtre/sıralama
+    // kartlarla tutarlı kalır.
+    const standartSnF = inspector.standartSure || 0;
+    let mesaiSnF = inspector.mesaiSure || 0;
+    const notrKayipSnF = getNotrKayipDakikaForInspector(inspector.ins) * 60;
+    if (notrKayipSnF > 0 && mesaiSnF > notrKayipSnF) mesaiSnF -= notrKayipSnF;
+    const hamPerfF = (standartSnF > 0 && mesaiSnF > 0)
+      ? Math.round((standartSnF / mesaiSnF) * 100)
+      : inspector.genelHizPerf;
+    return {
+      ...inspector,
+      performans: hamPerfF !== null && hamPerfF !== undefined
+        ? Math.round(hamPerfF * (100 / hedefF))
+        : 0
+    };
+  })];
 
   if (perfFilter) {
     filtered = filtered.filter(inspector => {
@@ -4104,10 +4155,24 @@ function renderInspectorCards() {
   const currentHedef = Math.max(1, parseFloat(document.getElementById('inp-verimlilik')?.value) || 100);
 
   const cards = currentPageInspectors.map(inspector => {
-    // Düz. Performans = Ham Performans × (100 / Hedef%) — kartlarda bu gösterilir
+    // Düz. Performans = Ham Performans × (100 / Hedef%) — kartlarda bu gösterilir.
+    // "Ne ödül ne ceza" ilkesi: nötr sebeplerden (Ürün Olmaması, Insp. Lokasyon
+    // Değişimi, Diğer) kaynaklanan kayıp zaman, mesai süresinden (paydadan)
+    // düşülüp performans BUNA GÖRE yeniden hesaplanır — bkz. getDispPerf/
+    // getNotrKayipDakikaForInspector. Burada AYRICA (getDispPerf çağırmak
+    // yerine) hesaplanmasının sebebi: bu kart canlı Hedef Verimlilik input
+    // değerini (currentHedef) kullanıyor, inspector.hedefVerimlilik'teki
+    // (son hesaplamadan kalma, potansiyel olarak eski) değeri değil.
     const hamPerf = inspector.genelHizPerf;
-    const duzPerf = hamPerf !== null && hamPerf !== undefined
-      ? Math.round(hamPerf * (100 / currentHedef))
+    const standartSnKart = inspector.standartSure || 0;
+    let mesaiSnKart = inspector.mesaiSure || 0;
+    const notrKayipSnKart = getNotrKayipDakikaForInspector(inspector.ins) * 60;
+    if (notrKayipSnKart > 0 && mesaiSnKart > notrKayipSnKart) mesaiSnKart -= notrKayipSnKart;
+    const hamPerfDuzeltilmis = (standartSnKart > 0 && mesaiSnKart > 0)
+      ? Math.round((standartSnKart / mesaiSnKart) * 100)
+      : hamPerf;
+    const duzPerf = hamPerfDuzeltilmis !== null && hamPerfDuzeltilmis !== undefined
+      ? Math.round(hamPerfDuzeltilmis * (100 / currentHedef))
       : null;
     const performansVal = duzPerf ?? 0;
     const performansClass = getPerformanceClass(performansVal);
@@ -8992,8 +9057,8 @@ function getDuzeltilmisPerformans(inspector) {
   let mesaiSn = inspector.mesaiSure || 0;
   if (!mesaiSn || !standartSn) return getDispPerf(inspector);
 
-  const kayipDkSn = (typeof getKayipDakikaForInspector === 'function')
-    ? getKayipDakikaForInspector(inspector.ins) * 60
+  const kayipDkSn = (typeof getNotrKayipDakikaForInspector === 'function')
+    ? getNotrKayipDakikaForInspector(inspector.ins) * 60
     : 0;
   if (kayipDkSn > 0 && mesaiSn > kayipDkSn) {
     mesaiSn -= kayipDkSn;
