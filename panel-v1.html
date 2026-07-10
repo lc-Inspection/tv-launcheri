@@ -676,24 +676,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Depolara Göre Farklı Seviyeler (kullanıcı talebiyle eklendi) -->
-          <div style="border-top:1px dashed #CE93D8;padding-top:10px;display:flex;flex-direction:column;gap:8px">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--navy);margin:0">
-              <input type="checkbox" id="ornekleme-depo-aktif" onchange="toggleOrneklemeDepoDonemleri()" style="width:16px;height:16px;margin:0;cursor:pointer;accent-color:#8E24AA">
-              <span>🏭 Depolara Göre Farklı Seviyeler Kullan</span>
-            </label>
-            <div id="ornekleme-depolar-wrap" style="display:none;flex-direction:column;gap:8px">
-              <div style="font-size:10.5px;color:var(--muted);line-height:1.4">
-                Sadece FARKLI davranması gereken depoları buraya ekleyin (isim, Excel'deki <strong>InspectionYapilanDepo</strong> sütunuyla BİREBİR aynı olmalı). Buraya eklemediğiniz depolar mevcut genel/tarihe göre ayarlara aynen düşmeye devam eder — hiçbir şey bozulmaz.
-              </div>
-              <div id="ornekleme-depolar-list" style="display:flex;flex-direction:column;gap:8px"></div>
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <input type="text" id="ornekleme-depo-yeni-isim" placeholder="Depo ismi (ör. ESENYURT DEPO)" style="width:220px;padding:5px 8px;font-size:12px">
-                <button type="button" class="btn btn-sm" onclick="addOrneklemeDepo()" style="border-color:#CE93D8;color:#8E24AA">+ Depo Ekle</button>
-              </div>
-            </div>
-          </div>
         </div>
         <!-- 2.Kalite Genel Performansa Dahil Etme Ayarı -->
         <div style="margin-top:14px;padding:12px 14px;background:linear-gradient(135deg,#F3E5F5 0%,#fff 100%);border:1px solid #CE93D8;border-radius:9px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
