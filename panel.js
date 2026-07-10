@@ -17,6 +17,25 @@ let teknikKriterler = [];   // [{id, metin, puan, aktif, sira}]
 let teknikSkorlar   = [];   // ham cevap satırları [{id, inspector, degerlendiren, tarih, kriterId, kriterMetin, maxPuan, tikli, kazanilanPuan, aciklama, savedAt}]
 const TI_BASARI_ESIGI = 85; // Değerlendirme başına başarı eşiği (%) — bu ve üstü "Başarılı" sayılır
 
+// ─── Az Veri Uyarı Eşiği (kullanıcı talebiyle) ───
+// Bir inspector'ın çalışma gün sayısı bu eşiğin ALTINDAYSA, performans
+// sıralamalarında (Dashboard kartı, En İyi 10 listesi, Genel Performans
+// tablosu) "⚠️ az veri" rozeti gösterilir. AMA sıralamadan/listeden
+// ÇIKARILMAZ — sadece az veriye dayandığı görsel olarak belirtilir
+// (ör. 1 günlük bir performans, 44 günlük ortalamayla aynı ağırlıkta
+// görünüp yanıltıcı olabiliyordu).
+const AZ_VERI_GUN_ESIGI = 10;
+function azVeriMi(gunSayisi) {
+  return (gunSayisi || 0) < AZ_VERI_GUN_ESIGI;
+}
+function azVeriRozetiHtml(stil) {
+  // stil: 'inline' (küçük metin) | 'badge' (renkli kutu)
+  if (stil === 'badge') {
+    return `<span title="Bu performans ${AZ_VERI_GUN_ESIGI} günden az çalışma verisine dayanıyor — dikkatli yorumlayın" style="font-size:8.5px;font-weight:700;background:#FFF3E0;color:#E65100;padding:2px 6px;border-radius:8px;letter-spacing:.3px;margin-left:5px;white-space:nowrap;">⚠️ az veri</span>`;
+  }
+  return `<span title="Bu performans ${AZ_VERI_GUN_ESIGI} günden az çalışma verisine dayanıyor — dikkatli yorumlayın" style="color:#E65100;font-weight:600;">⚠️ az veri</span>`;
+}
+
 // Admin'in yüklediği resmi "Teknik İnceleme" checklist formundaki 21 madde (toplam 100 puan).
 // "Varsayılan Soruları Yükle" butonuyla tek tıkla kriter listesine eklenir.
 const TI_DEFAULT_KRITERLER = [
@@ -3805,7 +3824,7 @@ function showPerfSeviyeDetay(seviyeKey) {
     return `
       <tr style="border-bottom:1px solid var(--border2)">
         <td style="padding:9px 10px;font-weight:600;color:var(--navy);cursor:pointer" onclick="document.getElementById('perf-seviye-popup').style.display='none'; showInspectorDetail('${insp.ins.replace(/'/g, "\\'")}')">${_escapeHtml(_formatDisplayName(insp.ins))}</td>
-        <td style="padding:9px 10px;text-align:center;font-family:'DM Mono',monospace;color:var(--navy)">${insp.gunSayisi || 0} gün</td>
+        <td style="padding:9px 10px;text-align:center;font-family:'DM Mono',monospace;color:var(--navy)">${insp.gunSayisi || 0} gün${azVeriMi(insp.gunSayisi) ? '<br>' + azVeriRozetiHtml('badge') : ''}</td>
         <td style="padding:9px 10px;text-align:center;font-family:'DM Mono',monospace;color:var(--navy)">${formatTR((insp.adet || 0))}</td>
         <td style="padding:9px 10px;text-align:center">${otHtml}</td>
         <td style="padding:9px 10px;text-align:center;font-family:'DM Mono',monospace;font-weight:700;color:${perfColor}">${perf}%</td>
@@ -5392,7 +5411,7 @@ function renderPerfTabloFromData(page) {
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${row.ins}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:1px;">${row.gunSayisi || 0} gün · ${tarihDurumu}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:1px;">${row.gunSayisi || 0} gün · ${tarihDurumu}${azVeriMi(row.gunSayisi) ? ' ' + azVeriRozetiHtml('inline') : ''}</div>
           <div style="margin-top:5px;">
             <span style="font-size:9px;font-weight:700;background:${cm.badge};color:${cm.badgeTxt};
               padding:2px 7px;border-radius:8px;letter-spacing:.4px;">${cm.label}</span>
@@ -6567,6 +6586,7 @@ function renderTopInspectors() {
               ${formatTR((inspector.adet || 0))} ${t.units_short} · ${inspector.gunSayisi || 0} ${t.working}
             </div>
             <span class="top-inspector-badge ${performanceLevel.cls}" style="margin-top:4px;display:inline-block">${performanceLevel.text}</span>
+            ${azVeriMi(inspector.gunSayisi) ? azVeriRozetiHtml('badge') : ''}
           </div>
           <div class="top-inspector-performance ${performansClass}" style="color:${perfColor};flex-shrink:0">${performans}%</div>
         </div>
