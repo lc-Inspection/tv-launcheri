@@ -2445,13 +2445,25 @@ async function pushPerformansManual(ev) {
           kayitFiiliSure: v.kayitFiiliSure, hizPerf: v.hizPerf, hacimPerf: v.hacimPerf
         };
       });
+      // "Ne ödül ne ceza" düzeltmesi CANLI _manualHedef ile: aksi halde
+      // ekranda gösterilen (düzeltilmiş) yüzde ile Sheets/DB'ye gönderilen
+      // yüzde birbirini tutmaz. getDispPerf() çağırmıyoruz çünkü o,
+      // inspector.hedefVerimlilik'teki olası ESKİ/durağan hedefi kullanır.
+      const standartSnPush = inspector.standartSure || 0;
+      let mesaiSnPush = inspector.mesaiSure || 0;
+      const notrKayipSnPush = getNotrKayipDakikaForInspector(inspector.ins) * 60;
+      if (notrKayipSnPush > 0 && mesaiSnPush > notrKayipSnPush) mesaiSnPush -= notrKayipSnPush;
+      const hamPerfPush = (standartSnPush > 0 && mesaiSnPush > 0)
+        ? Math.round((standartSnPush / mesaiSnPush) * 100) : inspector.genelHizPerf;
+      const verimlilikPerfPush = hamPerfPush != null ? Math.round(hamPerfPush * (100 / _manualHedef)) : inspector.verimlilikPerf;
+
       return {
         ...inspector,
         klasmanlar: klasmanlarTemiz,
         toplamMesaistiSaniye: inspector.toplamMesaistiSaniye || 0,
         gunlukOvertimeDetay: inspector.gunlukOvertimeDetay || {},
         hedefVerimlilik: _manualHedef,
-        verimlilikPerf: inspector.genelHizPerf != null ? Math.round(inspector.genelHizPerf * (100 / _manualHedef)) : inspector.verimlilikPerf,
+        verimlilikPerf: verimlilikPerfPush,
         orneklemeMod: _manualOrneklemeMod,
         orneklemeTarihliAktif: _manualOrneklemeTarihliAktif,
         orneklemeDonemleri: _manualOrneklemeTarihliAktif ? orneklemeDonemleri : []
