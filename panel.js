@@ -4043,10 +4043,21 @@ function filterInspectors() {
 
   switch(sortOrder) {
     case 'perf-desc':
-      filtered.sort((a, b) => b.performans - a.performans);
+      // Az veri (10 günden az) olan inspector'lar performansı ne kadar yüksek
+      // olursa olsun, yeterli veriye sahip olanların ÖNÜNE geçemez — az veri
+      // her zaman sona atılır, aralarında ise normal performans sıralaması geçerli.
+      filtered.sort((a, b) => {
+        const aAz = azVeriMi(a.gunSayisi), bAz = azVeriMi(b.gunSayisi);
+        if (aAz !== bAz) return aAz ? 1 : -1;
+        return b.performans - a.performans;
+      });
       break;
     case 'perf-asc':
-      filtered.sort((a, b) => a.performans - b.performans);
+      filtered.sort((a, b) => {
+        const aAz = azVeriMi(a.gunSayisi), bAz = azVeriMi(b.gunSayisi);
+        if (aAz !== bAz) return aAz ? 1 : -1;
+        return a.performans - b.performans;
+      });
       break;
     case 'name-asc':
       filtered.sort((a, b) => a.ins.localeCompare(b.ins));
@@ -6540,7 +6551,13 @@ function renderTopInspectors() {
       const perf = getDispPerf(i);
       return perf !== null && perf !== undefined && !isNaN(perf) && perf > 0;
     })
-    .sort((a, b) => getDispPerf(b) - getDispPerf(a))
+    .sort((a, b) => {
+      // Az veri (10 günden az) olan inspector'lar performansı ne kadar
+      // yüksek olursa olsun, yeterli veriye sahip olanların ÖNÜNE geçemez.
+      const aAz = azVeriMi(a.gunSayisi), bAz = azVeriMi(b.gunSayisi);
+      if (aAz !== bAz) return aAz ? 1 : -1;
+      return getDispPerf(b) - getDispPerf(a);
+    })
     .slice(0, 10);
 
   if (!topInspectors.length) {
