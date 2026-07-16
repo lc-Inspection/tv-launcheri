@@ -1151,6 +1151,7 @@
         </div>
         <div class="ph-buttons">
           <button class="btn" onclick="loadTeknikInceleme()">🔄 Yenile</button>
+          <button class="btn" onclick="exportTiDashboardToExcel()" style="background:var(--lblue3);color:var(--blue2);border-color:var(--lblue)">📊 Performansı Excel'e Aktar</button>
         </div>
       </div>
 
@@ -1195,6 +1196,76 @@
             <button class="btn" onclick="yazdirTeknikIncelemeSonucu()" id="ti-print-btn" style="background:var(--lblue3);color:var(--blue2);border-color:var(--lblue)">🖨️ Sonucu Yazdır</button>
             <span id="ti-save-msg" style="font-size:12px;color:var(--green);display:none">✅ Kaydedildi!</span>
           </div>
+        </div>
+      </div>
+      <!-- İkinci Inspection (kullanıcı talebiyle eklendi) — Teknik İnceleme
+           bölümüne giriş yapanların ikinci günlük hedefi. -->
+      <div class="card" style="margin-bottom:16px;overflow:hidden">
+        <div class="card-header" style="background:linear-gradient(135deg,#00695C 0%,#00897B 100%);border-bottom:none;padding:14px 16px">
+          <h2 style="color:#fff;gap:8px">
+            <span style="background:rgba(255,255,255,.15);border-radius:7px;padding:4px 7px;font-size:13px">🔎</span>
+            İkinci Inspection Kaydı Gir
+          </h2>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px">
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Sipariş Kodu</label>
+              <input type="text" id="ii-siparis-kodu" placeholder="Sipariş kodu" style="width:100%">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Inspector İsmi <span style="color:#C62828">*</span></label>
+              <select id="ii-inspector" style="width:100%">
+                <option value="">— Inspector seçin —</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Ekip Yöneticisi İsmi</label>
+              <select id="ii-ekip-yoneticisi" style="width:100%">
+                <option value="">— Ekip yöneticisi seçin —</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Talep Numarası <span style="color:#C62828">*</span></label>
+              <input type="text" id="ii-talep-no" placeholder="Talep no" style="width:100%">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Talep Miktarı</label>
+              <input type="number" id="ii-talep-miktari" placeholder="0" min="0" style="width:100%">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Sonuç <span style="color:#C62828">*</span></label>
+              <select id="ii-sonuc" style="width:100%">
+                <option value="">— Seçin —</option>
+                <option value="Geçti">✅ Geçti</option>
+                <option value="Kaldı">❌ Kaldı</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Tarih</label>
+              <input type="date" id="ii-tarih" style="width:100%">
+            </div>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Not (opsiyonel)</label>
+            <input type="text" id="ii-not" placeholder="Açıklama / not" style="width:100%">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="saveIkinciInspection()" id="ii-save-btn">💾 İkinci Inspection Kaydet</button>
+            <span id="ii-save-msg" style="font-size:12px;color:var(--green);display:none">✅ Kaydedildi!</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;overflow:hidden">
+        <div class="card-header" style="padding:14px 16px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">
+          <h2>🔎 İkinci Inspection Kayıtları</h2>
+          <button onclick="temizleIkinciInspectionVerileri()" id="ii-clear-btn" style="background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">
+            🗑️ Temizle
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="ii-kayitlar-tablo" style="overflow-x:auto"></div>
         </div>
       </div>
 
@@ -1252,72 +1323,6 @@
         </div>
       </div>
 
-      <!-- İkinci Inspection (kullanıcı talebiyle eklendi) — Teknik İnceleme
-           bölümüne giriş yapanların ikinci günlük hedefi. -->
-      <div class="card" style="margin-bottom:16px;overflow:hidden">
-        <div class="card-header" style="background:linear-gradient(135deg,#00695C 0%,#00897B 100%);border-bottom:none;padding:14px 16px">
-          <h2 style="color:#fff;gap:8px">
-            <span style="background:rgba(255,255,255,.15);border-radius:7px;padding:4px 7px;font-size:13px">🔎</span>
-            İkinci Inspection Kaydı Gir
-          </h2>
-        </div>
-        <div class="card-body">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px">
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Sipariş Kodu</label>
-              <input type="text" id="ii-siparis-kodu" placeholder="Sipariş kodu" style="width:100%">
-            </div>
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Inspector İsmi <span style="color:#C62828">*</span></label>
-              <input type="text" id="ii-inspector" placeholder="Inspector adı" style="width:100%">
-            </div>
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Ekip Yöneticisi İsmi</label>
-              <input type="text" id="ii-ekip-yoneticisi" placeholder="Ekip yöneticisi adı" style="width:100%">
-            </div>
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Talep Numarası <span style="color:#C62828">*</span></label>
-              <input type="text" id="ii-talep-no" placeholder="Talep no" style="width:100%">
-            </div>
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Talep Miktarı</label>
-              <input type="number" id="ii-talep-miktari" placeholder="0" min="0" style="width:100%">
-            </div>
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Sonuç <span style="color:#C62828">*</span></label>
-              <select id="ii-sonuc" style="width:100%">
-                <option value="">— Seçin —</option>
-                <option value="Geçti">✅ Geçti</option>
-                <option value="Kaldı">❌ Kaldı</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Tarih</label>
-              <input type="date" id="ii-tarih" style="width:100%">
-            </div>
-          </div>
-          <div style="margin-bottom:14px">
-            <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Not (opsiyonel)</label>
-            <input type="text" id="ii-not" placeholder="Açıklama / not" style="width:100%">
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="saveIkinciInspection()" id="ii-save-btn">💾 İkinci Inspection Kaydet</button>
-            <span id="ii-save-msg" style="font-size:12px;color:var(--green);display:none">✅ Kaydedildi!</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom:16px;overflow:hidden">
-        <div class="card-header" style="padding:14px 16px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">
-          <h2>🔎 İkinci Inspection Kayıtları</h2>
-          <button onclick="temizleIkinciInspectionVerileri()" id="ii-clear-btn" style="background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">
-            🗑️ Temizle
-          </button>
-        </div>
-        <div class="card-body">
-          <div id="ii-kayitlar-tablo" style="overflow-x:auto"></div>
-        </div>
-      </div>
     </div>
 
 
