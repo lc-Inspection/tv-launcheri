@@ -10730,6 +10730,30 @@ function getTeknikIncelemeSkorForInspector(inspectorName) {
 }
 
 // ─── Sayfa Girişi ───
+// İkinci Inspection formundaki Inspector ve Ekip Yöneticisi alanlarını
+// sistemdeki mevcut isimlerden doldurur (kullanıcı talebiyle: elle yazmak
+// yerine sistemden seçilsin).
+async function fillIkinciInspectionDropdowns() {
+  const insSel = document.getElementById('ii-inspector');
+  if (insSel) {
+    const prev = insSel.value;
+    const isimler = performansData.map(i => i.ins).slice().sort((a,b) => a.localeCompare(b, 'tr'));
+    insSel.innerHTML = '<option value="">— Inspector seçin —</option>' +
+      isimler.map(ad => `<option value="${_escapeHtml(ad)}">${_escapeHtml(_formatDisplayName(ad))}</option>`).join('');
+    if (prev && isimler.includes(prev)) insSel.value = prev;
+  }
+
+  const eySel = document.getElementById('ii-ekip-yoneticisi');
+  if (eySel) {
+    if (!_usersCache.length) await _silentLoadUsersCache();
+    const prev = eySel.value;
+    const isimler = _usersCache.map(u => u.username).slice().sort((a,b) => a.localeCompare(b, 'tr'));
+    eySel.innerHTML = '<option value="">— Ekip yöneticisi seçin —</option>' +
+      isimler.map(ad => `<option value="${_escapeHtml(ad)}">${_escapeHtml(_formatDisplayName(ad))}</option>`).join('');
+    if (prev && isimler.includes(prev)) eySel.value = prev;
+  }
+}
+
 async function loadTeknikInceleme() {
   const tarihEl = document.getElementById('ti-tarih');
   if (tarihEl && !tarihEl.value) tarihEl.value = new Date().toISOString().split('T')[0];
@@ -10744,6 +10768,7 @@ async function loadTeknikInceleme() {
   // önerilerinin gelmesini bekle" akışındaki gecikmeyi ve karmaşıklığı
   // tamamen ortadan kaldırır.
   fillTeknikInspectorDropdown();
+  fillIkinciInspectionDropdowns();
 
   const adminWrap = document.getElementById('ti-admin-wrap');
   const isAdmin = !currentUser || currentUser.isAdmin;
@@ -11228,6 +11253,24 @@ async function kaydetTeknikInceleme() {
 }
 
 // ─── Skor Özeti Tablosu ───
+// ─── Teknik İnceleme Sayfalama (kullanıcı talebiyle eklendi — 15/sayfa) ───
+const TI_SAYFA_BOYUTU = 15;
+let tiSkorSayfa = 1;
+let tiKayitSayfa = 1;
+
+function _tiSayfalamaHtml(mevcutSayfa, toplamSayfa, prevFnAdi, nextFnAdi) {
+  if (toplamSayfa <= 1) return '';
+  return `<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border2)">
+    <button onclick="${prevFnAdi}()" ${mevcutSayfa<=1?'disabled':''} style="padding:5px 12px;font-size:12px;border:1px solid var(--border2);background:#fff;border-radius:6px;cursor:pointer;${mevcutSayfa<=1?'opacity:.4;cursor:not-allowed':''}">‹ Önceki</button>
+    <span style="font-size:12px;color:var(--muted2)">Sayfa ${mevcutSayfa} / ${toplamSayfa}</span>
+    <button onclick="${nextFnAdi}()" ${mevcutSayfa>=toplamSayfa?'disabled':''} style="padding:5px 12px;font-size:12px;border:1px solid var(--border2);background:#fff;border-radius:6px;cursor:pointer;${mevcutSayfa>=toplamSayfa?'opacity:.4;cursor:not-allowed':''}">Sonraki ›</button>
+  </div>`;
+}
+function tiSkorOncekiSayfa() { if (tiSkorSayfa > 1) { tiSkorSayfa--; renderTiSkorOzet(); } }
+function tiSkorSonrakiSayfa() { tiSkorSayfa++; renderTiSkorOzet(); }
+function tiKayitOncekiSayfa() { if (tiKayitSayfa > 1) { tiKayitSayfa--; renderTiKayitlarTablo(); } }
+function tiKayitSonrakiSayfa() { tiKayitSayfa++; renderTiKayitlarTablo(); }
+
 function renderTiSkorOzet() {
   const wrap = document.getElementById('ti-skor-ozet');
   if (!wrap) return;
@@ -11239,7 +11282,12 @@ function renderTiSkorOzet() {
     </div>`;
     return;
   }
-  const rows = isimler.map(ins => {
+  const toplamSayfa = Math.max(1, Math.ceil(isimler.length / TI_SAYFA_BOYUTU));
+  if (tiSkorSayfa > toplamSayfa) tiSkorSayfa = toplamSayfa;
+  const baslangic = (tiSkorSayfa - 1) * TI_SAYFA_BOYUTU;
+  const sayfaIsimleri = isimler.slice(baslangic, baslangic + TI_SAYFA_BOYUTU);
+
+  const rows = sayfaIsimleri.map(ins => {
     const s = getTeknikIncelemeSkorForInspector(ins);
     const color = getProgressColor(s.percent);
     return `<tr>
@@ -11257,7 +11305,8 @@ function renderTiSkorOzet() {
       <th style="text-align:left;padding:8px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Veri</th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table>
+  ${_tiSayfalamaHtml(tiSkorSayfa, toplamSayfa, 'tiSkorOncekiSayfa', 'tiSkorSonrakiSayfa')}`;
 }
 
 // ─── ADMIN: Kriter Yönetimi ───
@@ -11355,7 +11404,11 @@ function renderTiKayitlarTablo() {
   // özeti (bkz. saveTeknikIncelemeKaydi) — gruplamaya gerek yok.
   const satirlar = teknikSkorlar.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
   const basariliSayisi = satirlar.filter(g => (g.skorYuzde ?? 0) >= TI_BASARI_ESIGI).length;
-  const rows = satirlar.map(g => {
+  const toplamSayfa = Math.max(1, Math.ceil(satirlar.length / TI_SAYFA_BOYUTU));
+  if (tiKayitSayfa > toplamSayfa) tiKayitSayfa = toplamSayfa;
+  const baslangic = (tiKayitSayfa - 1) * TI_SAYFA_BOYUTU;
+  const sayfaSatirlari = satirlar.slice(baslangic, baslangic + TI_SAYFA_BOYUTU);
+  const rows = sayfaSatirlari.map(g => {
     const percent = g.skorYuzde ?? (g.maxPuan > 0 ? Math.round((g.kazanilanPuan / g.maxPuan) * 100) : 0);
     const basarili = percent >= TI_BASARI_ESIGI;
     const durumHtml = basarili
@@ -11387,7 +11440,8 @@ function renderTiKayitlarTablo() {
       <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Durum</th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table>
+  ${_tiSayfalamaHtml(tiKayitSayfa, toplamSayfa, 'tiKayitOncekiSayfa', 'tiKayitSonrakiSayfa')}`;
 }
 
 // ─── İkinci Inspection Kayıtları Tablosu ───
@@ -11449,6 +11503,36 @@ function renderIkinciInspectionTablo() {
 // referans "haftalık hedef" gösteriminde (günlük hedef × 6) kullanılır,
 // ortalama hesabını etkilemez (zaten sadece aktif günlere bakıldığı için
 // haftanın kaç iş günü olduğu ortalamayı değiştirmez).
+// ─── Teknik Değerlendirme Uzmanları Performansını Excel'e Aktar (kullanıcı talebiyle) ───
+function exportTiDashboardToExcel() {
+  const satirlar = window._tiDashboardSatirlari || [];
+  if (!satirlar.length) { alert('⚠️ Henüz dışa aktarılacak veri yok.'); return; }
+  const hedefTD = teknikHedefler.teknikDegerlendirmeGunluk || 3;
+  const hedefII = teknikHedefler.ikinciInspectionGunluk || 5;
+
+  const data = satirlar.map(s => ({
+    'Kullanıcı': _formatDisplayName(s.kullanici),
+    'Bugün Teknik Değerlendirme': s.tdBugun,
+    'Hedef (Teknik Değ.)': hedefTD,
+    'Ort. Teknik Değ./Gün (aktif gün bazlı)': s.tdOrtalama !== null ? Math.round(s.tdOrtalama * 10) / 10 : '—',
+    'Aktif Gün (Teknik Değ.)': s.tdGunSayisi,
+    'Bugün İkinci Inspection': s.iiBugun,
+    'Hedef (İkinci Insp.)': hedefII,
+    'Ort. İkinci Insp./Gün (aktif gün bazlı)': s.iiOrtalama !== null ? Math.round(s.iiOrtalama * 10) / 10 : '—',
+    'Aktif Gün (İkinci Insp.)': s.iiGunSayisi,
+    'Genel Performans (%)': s.genelPerf !== null ? s.genelPerf : '—'
+  }));
+
+  const workbook = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [
+    {wch:22},{wch:24},{wch:16},{wch:30},{wch:20},{wch:22},{wch:16},{wch:30},{wch:20},{wch:18}
+  ];
+  XLSX.utils.book_append_sheet(workbook, ws, 'Teknik Değ. Uzmanları');
+  const tarihStr = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(workbook, `Teknik_Degerlendirme_Uzmanlari_Performans_${tarihStr}.xlsx`);
+}
+
 function renderTiDashboard() {
   const wrap = document.getElementById('ti-dashboard-wrap');
   if (!wrap) return;
@@ -11475,9 +11559,19 @@ function renderTiDashboard() {
     const iiBugun = iiKayitlari.filter(r => r.tarih === bugun).length;
     const iiOrtalama = iiGunSet.size > 0 ? (iiKayitlari.length / iiGunSet.size) : null;
 
+    // Genel Performans (%): iki hedefin (Teknik Değerlendirme + İkinci
+    // Inspection) ortalamaya göre gerçekleşme oranının ortalaması. Sadece
+    // veri olan metrik(ler) hesaba katılır — "ne ödül ne ceza" ilkesiyle
+    // tutarlı: hiç verisi olmayan metrik yüzdeyi ne yükseltir ne düşürür.
+    const tdOran = tdOrtalama !== null ? (tdOrtalama / hedefTD) * 100 : null;
+    const iiOran = iiOrtalama !== null ? (iiOrtalama / hedefII) * 100 : null;
+    const oranlar = [tdOran, iiOran].filter(o => o !== null);
+    const genelPerf = oranlar.length > 0 ? Math.round(oranlar.reduce((a,b)=>a+b,0) / oranlar.length) : null;
+
     return { kullanici, tdBugun, tdOrtalama, tdGunSayisi: tdGunSet.size,
-             iiBugun, iiOrtalama, iiGunSayisi: iiGunSet.size };
+             iiBugun, iiOrtalama, iiGunSayisi: iiGunSet.size, genelPerf };
   });
+  window._tiDashboardSatirlari = satirlar; // Excel'e aktarım için önbellek
 
   const rozet = (deger, hedef) => {
     if (deger === null) return `<span style="font-size:10px;color:var(--muted2);font-style:italic">veri yok</span>`;
@@ -11489,6 +11583,12 @@ function renderTiDashboard() {
     return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;background:${basarili ? '#E8F5E9' : '#FFEBEE'};color:${basarili ? '#2E7D32' : '#C62828'};border:1px solid ${basarili ? '#A5D6A7' : '#EF9A9A'};border-radius:99px;font-size:12px;font-weight:700">${deger}/${hedef}</span>`;
   };
 
+  const genelPerfRozet = (deger) => {
+    if (deger === null) return `<span style="font-size:10px;color:var(--muted2);font-style:italic">—</span>`;
+    const color = deger >= 100 ? '#2E7D32' : (deger >= 70 ? '#F57F17' : '#C62828');
+    return `<span style="display:inline-flex;align-items:center;padding:3px 11px;background:${deger>=100?'#E8F5E9':(deger>=70?'#FFF8E1':'#FFEBEE')};color:${color};border-radius:99px;font-size:12.5px;font-weight:700">${deger}%</span>`;
+  };
+
   const satirHtml = satirlar.map(s => `
     <tr>
       <td style="padding:8px 10px;font-size:12.5px;font-weight:600;color:var(--navy)">${_escapeHtml(_formatDisplayName(s.kullanici))}</td>
@@ -11496,6 +11596,7 @@ function renderTiDashboard() {
       <td style="padding:8px 10px;text-align:center;font-size:12px">${rozet(s.tdOrtalama, hedefTD)} <span style="color:var(--muted2);font-size:10.5px">(${s.tdGunSayisi} aktif gün)</span></td>
       <td style="padding:8px 10px;text-align:center">${bugunRozet(s.iiBugun, hedefII)}</td>
       <td style="padding:8px 10px;text-align:center;font-size:12px">${rozet(s.iiOrtalama, hedefII)} <span style="color:var(--muted2);font-size:10.5px">(${s.iiGunSayisi} aktif gün)</span></td>
+      <td style="padding:8px 10px;text-align:center">${genelPerfRozet(s.genelPerf)}</td>
     </tr>
   `).join('');
 
@@ -11529,6 +11630,7 @@ function renderTiDashboard() {
         <th style="text-align:center;padding:8px 10px;font-size:10.5px;color:var(--muted);text-transform:uppercase">Ort. Teknik Değ./Gün</th>
         <th style="text-align:center;padding:8px 10px;font-size:10.5px;color:var(--muted);text-transform:uppercase">Bugün İkinci Insp.</th>
         <th style="text-align:center;padding:8px 10px;font-size:10.5px;color:var(--muted);text-transform:uppercase">Ort. İkinci Insp./Gün</th>
+        <th style="text-align:center;padding:8px 10px;font-size:10.5px;color:var(--muted);text-transform:uppercase">Genel Performans</th>
       </tr></thead>
       <tbody>${satirHtml}</tbody>
     </table>
