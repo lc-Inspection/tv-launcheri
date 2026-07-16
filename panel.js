@@ -570,6 +570,14 @@ let excelCols = [];
 let performansData = [];
 let kayipZamanData = []; // { id, inspector, tarih, gun, baslangic, bitis, sebep, aciklama, ekipYoneticisi, sureDk }
 
+// ─── İkinci Inspection (kullanıcı talebiyle eklendi) ───
+// Teknik İnceleme bölümüne giriş yapan kullanıcıların ikinci hedefi: günlük
+// belirli sayıda "ikinci inspection" kaydı girmeleri gerekiyor.
+let ikinciInspectionData = []; // { id, siparisKodu, inspector, ekipYoneticisi, talepNo, talepMiktari, sonuc, notAlani, tarih, degerlendiren, savedAt }
+// Teknik İnceleme hedefleri (admin tarafından ayarlanır) — varsayılan: günlük
+// 3 teknik değerlendirme, günlük 5 ikinci inspection.
+let teknikHedefler = { teknikDegerlendirmeGunluk: 3, ikinciInspectionGunluk: 5 };
+
 // Kullanıcı yönetimi (Users sekmesi) için global cache — sayfa açılışında
 // renderDashboard() → renderTeamManagersSection() zinciri tarafından erken
 // kullanıldığından, TDZ hatasını önlemek için burada (dosyanın başında) tanımlanır.
@@ -9087,6 +9095,106 @@ async function saveKayipZaman() {
   }
 }
 
+// ─── İkinci Inspection Kaydet (kullanıcı talebiyle eklendi) ───
+// Teknik İnceleme bölümüne giriş yapan kullanıcıların günlük hedefi: en az
+// N adet (varsayılan 5) ikinci inspection kaydı girmeleri gerekiyor.
+async function saveIkinciInspection() {
+  const siparisKodu    = document.getElementById('ii-siparis-kodu')?.value?.trim() || '';
+  const inspector      = document.getElementById('ii-inspector')?.value?.trim() || '';
+  const ekipYoneticisi = document.getElementById('ii-ekip-yoneticisi')?.value?.trim() || '';
+  const talepNo        = document.getElementById('ii-talep-no')?.value?.trim() || '';
+  const talepMiktari   = parseInt(document.getElementById('ii-talep-miktari')?.value, 10) || 0;
+  const sonuc          = document.getElementById('ii-sonuc')?.value || '';
+  const notAlani       = document.getElementById('ii-not')?.value?.trim() || '';
+  const tarih          = document.getElementById('ii-tarih')?.value || new Date().toISOString().split('T')[0];
+
+  if (!inspector)  { alert('⚠️ Lütfen Inspector İsmi girin.'); return; }
+  if (!talepNo)    { alert('⚠️ Lütfen Talep Numarası girin.'); return; }
+  if (!sonuc)      { alert('⚠️ Lütfen Sonuç (Geçti/Kaldı) seçin.'); return; }
+
+  const url = appConfig.sheetsWebAppUrl;
+  const token = appConfig.sheetsApiToken;
+  if (!url) { alert('⚠️ Sunucu bağlantısı yapılandırılmamış.'); return; }
+
+  const record = {
+    id: Date.now().toString(),
+    siparisKodu, inspector, ekipYoneticisi, talepNo, talepMiktari, sonuc, notAlani,
+    tarih,
+    degerlendiren: currentUser?.username || '',
+    savedAt: new Date().toISOString()
+  };
+
+  const btn = document.getElementById('ii-save-btn');
+  const msg = document.getElementById('ii-save-msg');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Kaydediliyor...'; }
+
+  try {
+    const resp = await jsonpFetch(url, {
+      action: 'setIkinciInspection',
+      token,
+      record: encodeURIComponent(JSON.stringify(record))
+    });
+    if (resp && resp.status === 'error') {
+      alert('Hata: ' + (resp.message || 'Bilinmeyen hata'));
+      return;
+    }
+    ikinciInspectionData.push(record);
+    if (msg) { msg.style.display = ''; setTimeout(() => { msg.style.display = 'none'; }, 3000); }
+    // Formu temizle (Inspector/Ekip Yöneticisi hariç — art arda aynı kişi için birden çok girilebilir)
+    const _el = id => document.getElementById(id);
+    if (_el('ii-siparis-kodu'))  _el('ii-siparis-kodu').value = '';
+    if (_el('ii-talep-no'))      _el('ii-talep-no').value = '';
+    if (_el('ii-talep-miktari')) _el('ii-talep-miktari').value = '';
+    if (_el('ii-sonuc'))         _el('ii-sonuc').value = '';
+    if (_el('ii-not'))           _el('ii-not').value = '';
+    renderIkinciInspectionTablo();
+    renderTiDashboard();
+  } catch(e) {
+    alert('Hata: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 İkinci Inspection Kaydet'; }
+  }
+}
+
+async function temizleIkinciInspectionVerileri() {
+  if (!confirm('⚠️ TÜM İkinci Inspection kayıtlarını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
+  const url = appConfig.sheetsWebAppUrl;
+  const token = appConfig.sheetsApiToken;
+  if (!url) { alert('⚠️ Sunucu bağlantısı yapılandırılmamış.'); return; }
+  try {
+    await jsonpFetch(url, { action: 'clearIkinciInspection', token });
+    ikinciInspectionData = [];
+    renderIkinciInspectionTablo();
+    renderTiDashboard();
+    alert('✅ İkinci Inspection kayıtları temizlendi.');
+  } catch(e) {
+    alert('Hata: ' + e.message);
+  }
+}
+
+// ─── Teknik İnceleme Hedeflerini Kaydet (Admin) ───
+async function kaydetTeknikHedefler() {
+  const teknikDegerlendirmeGunluk = Math.max(1, parseInt(document.getElementById('ti-hedef-degerlendirme')?.value, 10) || 3);
+  const ikinciInspectionGunluk    = Math.max(1, parseInt(document.getElementById('ti-hedef-ikinci-inspection')?.value, 10) || 5);
+
+  const url = appConfig.sheetsWebAppUrl;
+  const token = appConfig.sheetsApiToken;
+  if (!url) { alert('⚠️ Sunucu bağlantısı yapılandırılmamış.'); return; }
+
+  teknikHedefler = { teknikDegerlendirmeGunluk, ikinciInspectionGunluk };
+  try {
+    await jsonpFetch(url, {
+      action: 'setTeknikHedefler',
+      token,
+      hedefler: encodeURIComponent(JSON.stringify(teknikHedefler))
+    });
+    showSuccessMessage('✅ Hedefler kaydedildi.');
+    renderTiDashboard();
+  } catch(e) {
+    alert('Hata: ' + e.message);
+  }
+}
+
 // ─── Ekip Yöneticisi: Sayfayı Yükle ───
 async function loadKayipZamanEkip() {
   fillKayipZamanInspectorDropdown();
@@ -9108,6 +9216,41 @@ async function fetchKayipZamanData() {
     }
   } catch(e) {
     console.warn('Kayıp zaman verisi çekilemedi:', e);
+  }
+}
+
+// ─── İkinci Inspection verisini çek ───
+async function fetchIkinciInspectionData() {
+  const url = appConfig.sheetsWebAppUrl;
+  const token = appConfig.sheetsApiToken;
+  if (!url) return;
+  try {
+    const data = await jsonpFetch(url, { action: 'getIkinciInspection', token });
+    if (data?.status === 'ok' && Array.isArray(data.kayitlar)) {
+      ikinciInspectionData = data.kayitlar;
+      try { localStorage.setItem('lc_ikinci_inspection_cache', JSON.stringify(ikinciInspectionData)); } catch(e) {}
+    }
+  } catch(e) {
+    console.warn('İkinci Inspection verisi çekilemedi:', e);
+  }
+}
+
+// ─── Teknik İnceleme Hedeflerini çek ───
+async function fetchTeknikHedefler() {
+  const url = appConfig.sheetsWebAppUrl;
+  const token = appConfig.sheetsApiToken;
+  if (!url) return;
+  try {
+    const data = await jsonpFetch(url, { action: 'getTeknikHedefler', token });
+    if (data?.status === 'ok' && data.hedefler) {
+      teknikHedefler = {
+        teknikDegerlendirmeGunluk: Number(data.hedefler.teknikDegerlendirmeGunluk) || 3,
+        ikinciInspectionGunluk: Number(data.hedefler.ikinciInspectionGunluk) || 5
+      };
+      try { localStorage.setItem('lc_teknik_hedefler_cache', JSON.stringify(teknikHedefler)); } catch(e) {}
+    }
+  } catch(e) {
+    console.warn('Teknik İnceleme hedefleri çekilemedi:', e);
   }
 }
 
@@ -10590,6 +10733,8 @@ function getTeknikIncelemeSkorForInspector(inspectorName) {
 async function loadTeknikInceleme() {
   const tarihEl = document.getElementById('ti-tarih');
   if (tarihEl && !tarihEl.value) tarihEl.value = new Date().toISOString().split('T')[0];
+  const iiTarihEl = document.getElementById('ii-tarih');
+  if (iiTarihEl && !iiTarihEl.value) iiTarihEl.value = new Date().toISOString().split('T')[0];
 
   // SADELEŞTİRİLMİŞ AKIŞ (kullanıcı talebiyle): Inspector listesi artık
   // tarihten TAMAMEN bağımsız — sayfa açılır açılmaz TÜM inspector'lar
@@ -10602,25 +10747,32 @@ async function loadTeknikInceleme() {
 
   const adminWrap = document.getElementById('ti-admin-wrap');
   const isAdmin = !currentUser || currentUser.isAdmin;
+  // YETKİ DEĞİŞİKLİĞİ (kullanıcı talebiyle): "Kriter Yönetimi" hâlâ admin'e
+  // özel (kriterleri/soruları tanımlamak hassas bir işlem) — ama "Tüm
+  // Değerlendirme Kayıtları" ve yeni İkinci Inspection/Dashboard bölümleri
+  // artık Teknik İnceleme'ye erişimi olan HERKES (Teknik Değerlendirme
+  // Uzmanı) tarafından görülüp yönetilebiliyor, sadece admin değil.
   if (adminWrap) adminWrap.style.display = isAdmin ? '' : 'none';
 
-  // Önbellekteki (localStorage) kriterlerle HEMEN çiz — ağ isteğini bekleme.
-  // Böylece bir Talep No seçildiği an kriterler anında görünür; arka planda
-  // fetchTeknikKriterler() güncel veriyi getirdiğinde tekrar çizilir.
+  // Önbellekteki (localStorage) verilerle HEMEN çiz — ağ isteğini bekleme.
   renderTeknikKriterForm();
   renderTiSkorOzet();
+  renderTiKayitlarTablo();
+  renderIkinciInspectionTablo();
+  renderTiDashboard();
   if (isAdmin) {
     renderTiKriterYonetimList();
-    renderTiKayitlarTablo();
   }
 
-  await Promise.all([fetchTeknikKriterler(), fetchTeknikSkorlar()]);
+  await Promise.all([fetchTeknikKriterler(), fetchTeknikSkorlar(), fetchIkinciInspectionData(), fetchTeknikHedefler()]);
 
   renderTeknikKriterForm();
   renderTiSkorOzet();
+  renderTiKayitlarTablo();
+  renderIkinciInspectionTablo();
+  renderTiDashboard();
   if (isAdmin) {
     renderTiKriterYonetimList();
-    renderTiKayitlarTablo();
   }
 }
 
@@ -11238,7 +11390,153 @@ function renderTiKayitlarTablo() {
   </table>`;
 }
 
-// ─── ADMIN: Tüm Teknik İnceleme kayıtlarını temizle (onay ister) ───
+// ─── İkinci Inspection Kayıtları Tablosu ───
+function renderIkinciInspectionTablo() {
+  const wrap = document.getElementById('ii-kayitlar-tablo');
+  if (!wrap) return;
+  if (!ikinciInspectionData.length) {
+    wrap.innerHTML = `<div class="empty" style="padding:20px">
+      <div class="empty-icon">🔎</div>
+      <h3>Henüz kayıt yok</h3>
+    </div>`;
+    return;
+  }
+  const satirlar = ikinciInspectionData.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  const rows = satirlar.map(r => {
+    const gecti = r.sonuc === 'Geçti';
+    const durumHtml = gecti
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;border-radius:99px;font-size:11px;font-weight:700">✅ Geçti</span>`
+      : `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A;border-radius:99px;font-size:11px;font-weight:700">❌ Kaldı</span>`;
+    return `<tr>
+      <td style="padding:7px 10px;font-size:12px;color:var(--muted2);font-family:'DM Mono',monospace">${_escapeHtml(r.siparisKodu || '—')}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--navy);font-weight:500">${_escapeHtml(_formatDisplayName(r.inspector))}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--muted2)">${_escapeHtml(_formatDisplayName(r.ekipYoneticisi || '—'))}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--muted2);font-family:'DM Mono',monospace">${_escapeHtml(r.talepNo || '—')}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--muted2)">${r.talepMiktari || 0}</td>
+      <td style="padding:7px 10px">${durumHtml}</td>
+      <td style="padding:7px 10px;font-size:11.5px;color:var(--muted2)">${_escapeHtml(r.notAlani || '—')}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--muted2)">${_escapeHtml(r.tarih || '—')}</td>
+      <td style="padding:7px 10px;font-size:11.5px;color:var(--muted)">${_escapeHtml(_formatDisplayName(r.degerlendiren || '—'))}</td>
+    </tr>`;
+  }).join('');
+  const geciSayisi = satirlar.filter(r => r.sonuc === 'Geçti').length;
+  wrap.innerHTML = `
+    <div style="margin-bottom:10px;font-size:12px;color:var(--muted2)">
+      <strong style="color:var(--navy)">${geciSayisi}</strong> / ${satirlar.length} kayıt "Geçti"
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:2px solid var(--border2)">
+      <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Sipariş Kodu</th>
+      <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Inspector</th>
+      <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Ekip Yöneticisi</th>
+      <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Talep No</th>
+      <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Talep Miktarı</th>
+      <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Sonuç</th>
+      <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Not</th>
+      <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Tarih</th>
+      <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Giren</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ─── Teknik İnceleme Dashboard (kullanıcı talebiyle eklendi) ───
+// Günlük 2 hedefi (Teknik Değerlendirme + İkinci Inspection) takip eder.
+// "NE ÖDÜL NE CEZA" İLKESİ: ortalama hesaplanırken takvim günü değil, SADECE
+// o kullanıcının VERİ GİRDİĞİ (aktif) günler baz alınır — izinli/raporlu
+// olabileceği, hiç veri girilmemiş günler ne lehine ne aleyhine sayılır,
+// hesaba hiç dahil edilmez. Çalışma haftası 6 gün kabul edilir; bu sadece
+// referans "haftalık hedef" gösteriminde (günlük hedef × 6) kullanılır,
+// ortalama hesabını etkilemez (zaten sadece aktif günlere bakıldığı için
+// haftanın kaç iş günü olduğu ortalamayı değiştirmez).
+function renderTiDashboard() {
+  const wrap = document.getElementById('ti-dashboard-wrap');
+  if (!wrap) return;
+
+  const bugun = new Date().toISOString().split('T')[0];
+  const hedefTD = teknikHedefler.teknikDegerlendirmeGunluk || 3;
+  const hedefII = teknikHedefler.ikinciInspectionGunluk || 5;
+
+  // Hem Teknik Değerlendirme hem İkinci Inspection'da görünen tüm "giren
+  // kullanıcı"ları topla (birleşik liste — biri diğerini yapmamış olsa bile
+  // listede görünür, o metrikte 0 gösterilir).
+  const kullanicilar = new Set();
+  teknikSkorlar.forEach(s => { if (s.degerlendiren) kullanicilar.add(s.degerlendiren); });
+  ikinciInspectionData.forEach(r => { if (r.degerlendiren) kullanicilar.add(r.degerlendiren); });
+
+  const satirlar = Array.from(kullanicilar).sort((a,b) => a.localeCompare(b,'tr')).map(kullanici => {
+    const tdKayitlari = teknikSkorlar.filter(s => s.degerlendiren === kullanici);
+    const tdGunSet = new Set(tdKayitlari.map(s => s.tarih).filter(Boolean));
+    const tdBugun = tdKayitlari.filter(s => s.tarih === bugun).length;
+    const tdOrtalama = tdGunSet.size > 0 ? (tdKayitlari.length / tdGunSet.size) : null;
+
+    const iiKayitlari = ikinciInspectionData.filter(r => r.degerlendiren === kullanici);
+    const iiGunSet = new Set(iiKayitlari.map(r => r.tarih).filter(Boolean));
+    const iiBugun = iiKayitlari.filter(r => r.tarih === bugun).length;
+    const iiOrtalama = iiGunSet.size > 0 ? (iiKayitlari.length / iiGunSet.size) : null;
+
+    return { kullanici, tdBugun, tdOrtalama, tdGunSayisi: tdGunSet.size,
+             iiBugun, iiOrtalama, iiGunSayisi: iiGunSet.size };
+  });
+
+  const rozet = (deger, hedef) => {
+    if (deger === null) return `<span style="font-size:10px;color:var(--muted2);font-style:italic">veri yok</span>`;
+    const basarili = deger >= hedef;
+    return `<span style="font-weight:700;color:${basarili ? '#2E7D32' : '#C62828'}">${deger.toFixed(1)}</span>`;
+  };
+  const bugunRozet = (deger, hedef) => {
+    const basarili = deger >= hedef;
+    return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;background:${basarili ? '#E8F5E9' : '#FFEBEE'};color:${basarili ? '#2E7D32' : '#C62828'};border:1px solid ${basarili ? '#A5D6A7' : '#EF9A9A'};border-radius:99px;font-size:12px;font-weight:700">${deger}/${hedef}</span>`;
+  };
+
+  const satirHtml = satirlar.map(s => `
+    <tr>
+      <td style="padding:8px 10px;font-size:12.5px;font-weight:600;color:var(--navy)">${_escapeHtml(_formatDisplayName(s.kullanici))}</td>
+      <td style="padding:8px 10px;text-align:center">${bugunRozet(s.tdBugun, hedefTD)}</td>
+      <td style="padding:8px 10px;text-align:center;font-size:12px">${rozet(s.tdOrtalama, hedefTD)} <span style="color:var(--muted2);font-size:10.5px">(${s.tdGunSayisi} aktif gün)</span></td>
+      <td style="padding:8px 10px;text-align:center">${bugunRozet(s.iiBugun, hedefII)}</td>
+      <td style="padding:8px 10px;text-align:center;font-size:12px">${rozet(s.iiOrtalama, hedefII)} <span style="color:var(--muted2);font-size:10.5px">(${s.iiGunSayisi} aktif gün)</span></td>
+    </tr>
+  `).join('');
+
+  const isAdmin = !currentUser || currentUser.isAdmin;
+  const hedefAyarlariHtml = isAdmin ? `
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border2)">
+      <span style="font-size:11.5px;font-weight:700;color:var(--navy)">⚙️ Günlük Hedefler (Admin):</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:0">
+        Teknik Değerlendirme: <input type="number" id="ti-hedef-degerlendirme" min="1" value="${hedefTD}" style="width:60px;padding:4px 6px;font-size:12px">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:0">
+        İkinci Inspection: <input type="number" id="ti-hedef-ikinci-inspection" min="1" value="${hedefII}" style="width:60px;padding:4px 6px;font-size:12px">
+      </label>
+      <button class="btn btn-primary" onclick="kaydetTeknikHedefler()" style="padding:6px 14px;font-size:12px">💾 Hedefleri Kaydet</button>
+      <span style="font-size:10.5px;color:var(--muted2);font-style:italic">Haftalık referans (6 iş günü): ${hedefTD*6} teknik değerlendirme · ${hedefII*6} ikinci inspection</span>
+    </div>
+  ` : '';
+
+  wrap.innerHTML = satirlar.length === 0 ? `
+    <div class="empty" style="padding:16px 20px">
+      <div class="empty-icon">🎯</div>
+      <h3>Henüz veri girişi yok</h3>
+      <p style="font-size:12px;color:var(--muted)">Teknik Değerlendirme veya İkinci Inspection girildikçe burada günlük hedef takibi görünecek.</p>
+    </div>
+    ${hedefAyarlariHtml}
+  ` : `
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:2px solid var(--border2)">
+        <th style="text-align:left;padding:8px 10px;font-size:10.5px;color:var(--muted);text-transform:uppercase">Kullanıcı</th>
+        <th style="text-align:center;padding:8px 10px;font-size:10.5px;color:var(--muted);text-transform:uppercase">Bugün Teknik Değ.</th>
+        <th style="text-align:center;padding:8px 10px;font-size:10.5px;color:var(--muted);text-transform:uppercase">Ort. Teknik Değ./Gün</th>
+        <th style="text-align:center;padding:8px 10px;font-size:10.5px;color:var(--muted);text-transform:uppercase">Bugün İkinci Insp.</th>
+        <th style="text-align:center;padding:8px 10px;font-size:10.5px;color:var(--muted);text-transform:uppercase">Ort. İkinci Insp./Gün</th>
+      </tr></thead>
+      <tbody>${satirHtml}</tbody>
+    </table>
+    ${hedefAyarlariHtml}
+  `;
+}
+
+
 async function temizleTeknikIncelemeVerileri() {
   if (!confirm('⚠️ Tüm Teknik İnceleme değerlendirme kayıtları silinecek!\n\nBu işlem geri alınamaz. Devam etmek istiyor musunuz?')) return;
   if (!confirm('Son kez soruyoruz: Teknik İnceleme verilerini kalıcı olarak silmek istediğinize emin misiniz?')) return;
