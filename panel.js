@@ -11453,6 +11453,34 @@ function renderTiKayitlarTablo() {
   ${_tiSayfalamaHtml(tiKayitSayfa, toplamSayfa, 'tiKayitOncekiSayfa', 'tiKayitSonrakiSayfa')}`;
 }
 
+// ─── İkinci Inspection Kayıtlarını Excel'e Aktar (kullanıcı talebiyle) ───
+function exportIkinciInspectionToExcel() {
+  if (!ikinciInspectionData.length) { alert('⚠️ Henüz dışa aktarılacak İkinci Inspection kaydı yok.'); return; }
+  const satirlar = ikinciInspectionData.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+
+  const data = satirlar.map(r => ({
+    'Sipariş Kodu': r.siparisKodu || '',
+    'Inspector': _formatDisplayName(r.inspector || ''),
+    'Ekip Yöneticisi': _formatDisplayName(r.ekipYoneticisi || ''),
+    'Talep No': r.talepNo || '',
+    'Talep Miktarı': r.talepMiktari || 0,
+    'Sonuç': r.sonuc || '',
+    'Not': r.notAlani || '',
+    'Tarih': r.tarih || '',
+    'Giren': _formatDisplayName(r.degerlendiren || ''),
+    'Kayıt Zamanı': r.savedAt || ''
+  }));
+
+  const workbook = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [
+    {wch:16},{wch:22},{wch:22},{wch:14},{wch:14},{wch:10},{wch:30},{wch:12},{wch:20},{wch:22}
+  ];
+  XLSX.utils.book_append_sheet(workbook, ws, 'İkinci Inspection');
+  const tarihStr = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(workbook, `Ikinci_Inspection_Kayitlari_${tarihStr}.xlsx`);
+}
+
 // ─── İkinci Inspection Kayıtları Tablosu ───
 function renderIkinciInspectionTablo() {
   const wrap = document.getElementById('ii-kayitlar-tablo');
@@ -11529,13 +11557,14 @@ function exportTiDashboardToExcel() {
     'Hedef (İkinci Insp.)': hedefII,
     'Ort. İkinci Insp./Gün (aktif gün bazlı)': s.iiOrtalama !== null ? Math.round(s.iiOrtalama * 10) / 10 : '—',
     'Aktif Gün (İkinci Insp.)': s.iiGunSayisi,
+    'İkinci Insp. Geçti/Toplam Oranı (%)': s.iiGeciOrani !== null ? s.iiGeciOrani : '—',
     'Genel Performans (%)': s.genelPerf !== null ? s.genelPerf : '—'
   }));
 
   const workbook = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(data);
   ws['!cols'] = [
-    {wch:22},{wch:24},{wch:16},{wch:30},{wch:20},{wch:22},{wch:16},{wch:30},{wch:20},{wch:18}
+    {wch:22},{wch:24},{wch:16},{wch:30},{wch:20},{wch:22},{wch:16},{wch:30},{wch:20},{wch:26},{wch:18}
   ];
   XLSX.utils.book_append_sheet(workbook, ws, 'Teknik Değ. Uzmanları');
   const tarihStr = new Date().toISOString().split('T')[0];
@@ -11568,6 +11597,11 @@ function renderTiDashboard() {
     const iiBugun = iiKayitlari.filter(r => r.tarih === bugun).length;
     const iiOrtalama = iiGunSet.size > 0 ? (iiKayitlari.length / iiGunSet.size) : null;
 
+    // İkinci Inspection Sonuç Oranı (%) = Geçti sayısı ÷ Toplam kayıt sayısı.
+    // Veri yoksa null (— olarak gösterilir), "ne ödül ne ceza" ilkesiyle tutarlı.
+    const iiGeciSayisi = iiKayitlari.filter(r => r.sonuc === 'Geçti').length;
+    const iiGeciOrani = iiKayitlari.length > 0 ? Math.round((iiGeciSayisi / iiKayitlari.length) * 100) : null;
+
     // Genel Performans (%): iki hedefin (Teknik Değerlendirme + İkinci
     // Inspection) ortalamaya göre gerçekleşme oranının ortalaması. Sadece
     // veri olan metrik(ler) hesaba katılır — "ne ödül ne ceza" ilkesiyle
@@ -11578,6 +11612,7 @@ function renderTiDashboard() {
     const genelPerf = oranlar.length > 0 ? Math.round(oranlar.reduce((a,b)=>a+b,0) / oranlar.length) : null;
 
     return { kullanici, tdBugun, tdOrtalama, tdGunSayisi: tdGunSet.size,
+             iiGeciSayisi, iiGeciOrani,
              iiBugun, iiOrtalama, iiGunSayisi: iiGunSet.size, genelPerf };
   });
   window._tiDashboardSatirlari = satirlar; // Excel'e aktarım için önbellek
