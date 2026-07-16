@@ -11288,6 +11288,7 @@ async function kaydetTeknikInceleme() {
 const TI_SAYFA_BOYUTU = 15;
 let tiSkorSayfa = 1;
 let tiKayitSayfa = 1;
+let iiKayitSayfa = 1;
 
 function _tiSayfalamaHtml(mevcutSayfa, toplamSayfa, prevFnAdi, nextFnAdi) {
   if (toplamSayfa <= 1) return '';
@@ -11301,6 +11302,8 @@ function tiSkorOncekiSayfa() { if (tiSkorSayfa > 1) { tiSkorSayfa--; renderTiSko
 function tiSkorSonrakiSayfa() { tiSkorSayfa++; renderTiSkorOzet(); }
 function tiKayitOncekiSayfa() { if (tiKayitSayfa > 1) { tiKayitSayfa--; renderTiKayitlarTablo(); } }
 function tiKayitSonrakiSayfa() { tiKayitSayfa++; renderTiKayitlarTablo(); }
+function iiKayitOncekiSayfa() { if (iiKayitSayfa > 1) { iiKayitSayfa--; renderIkinciInspectionTablo(); } }
+function iiKayitSonrakiSayfa() { iiKayitSayfa++; renderIkinciInspectionTablo(); }
 
 function renderTiSkorOzet() {
   const wrap = document.getElementById('ti-skor-ozet');
@@ -11620,7 +11623,12 @@ function renderIkinciInspectionTablo() {
     </div>`;
     return;
   }
-  const rows = satirlar.map(r => {
+  const geciSayisiToplam = satirlar.filter(r => r.sonuc === 'Geçti').length;
+  const toplamSayfa = Math.max(1, Math.ceil(satirlar.length / TI_SAYFA_BOYUTU));
+  if (iiKayitSayfa > toplamSayfa) iiKayitSayfa = toplamSayfa;
+  const sayfaBaslangic = (iiKayitSayfa - 1) * TI_SAYFA_BOYUTU;
+  const sayfaSatirlari = satirlar.slice(sayfaBaslangic, sayfaBaslangic + TI_SAYFA_BOYUTU);
+  const rows = sayfaSatirlari.map(r => {
     const gecti = r.sonuc === 'Geçti';
     const durumHtml = gecti
       ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;border-radius:99px;font-size:11px;font-weight:700">✅ Geçti</span>`
@@ -11637,10 +11645,9 @@ function renderIkinciInspectionTablo() {
       <td style="padding:7px 10px;font-size:11.5px;color:var(--muted)">${_escapeHtml(_formatDisplayName(r.degerlendiren || '—'))}</td>
     </tr>`;
   }).join('');
-  const geciSayisi = satirlar.filter(r => r.sonuc === 'Geçti').length;
   wrap.innerHTML = `
     <div style="margin-bottom:10px;font-size:12px;color:var(--muted2)">
-      <strong style="color:var(--navy)">${geciSayisi}</strong> / ${satirlar.length} kayıt "Geçti"
+      <strong style="color:var(--navy)">${geciSayisiToplam}</strong> / ${satirlar.length} kayıt "Geçti"
     </div>
     <table style="width:100%;border-collapse:collapse">
     <thead><tr style="border-bottom:2px solid var(--border2)">
@@ -11655,7 +11662,8 @@ function renderIkinciInspectionTablo() {
       <th style="text-align:left;padding:7px 10px;font-size:11px;color:var(--muted);text-transform:uppercase">Giren</th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table>
+  ${_tiSayfalamaHtml(iiKayitSayfa, toplamSayfa, 'iiKayitOncekiSayfa', 'iiKayitSonrakiSayfa')}`;
 }
 
 // ─── Teknik İnceleme Dashboard (kullanıcı talebiyle eklendi) ───
