@@ -11305,11 +11305,24 @@ function tiKayitSonrakiSayfa() { tiKayitSayfa++; renderTiKayitlarTablo(); }
 function renderTiSkorOzet() {
   const wrap = document.getElementById('ti-skor-ozet');
   if (!wrap) return;
-  const isimler = Array.from(new Set(teknikSkorlar.map(r => r.inspector))).sort((a,b) => a.localeCompare(b, 'tr'));
+
+  // Filtreler: Inspector adı (serbest arama) + tarih aralığı (r.tarih alanına göre)
+  const fInspector = (document.getElementById('ti-skor-filtre-inspector')?.value || '').trim().toLocaleLowerCase('tr-TR');
+  const fBaslangic = document.getElementById('ti-skor-filtre-baslangic')?.value || '';
+  const fBitis = document.getElementById('ti-skor-filtre-bitis')?.value || '';
+
+  const filtreliSkorlar = teknikSkorlar.filter(r => {
+    if (fInspector && !String(r.inspector || '').toLocaleLowerCase('tr-TR').includes(fInspector)) return false;
+    if (fBaslangic && (!r.tarih || r.tarih < fBaslangic)) return false;
+    if (fBitis && (!r.tarih || r.tarih > fBitis)) return false;
+    return true;
+  });
+
+  const isimler = Array.from(new Set(filtreliSkorlar.map(r => r.inspector))).sort((a,b) => a.localeCompare(b, 'tr'));
   if (!isimler.length) {
     wrap.innerHTML = `<div class="empty" style="padding:20px">
       <div class="empty-icon">📊</div>
-      <h3>Henüz değerlendirme yapılmamış</h3>
+      <h3>${teknikSkorlar.length ? 'Filtreye uyan kayıt bulunamadı' : 'Henüz değerlendirme yapılmamış'}</h3>
     </div>`;
     return;
   }
@@ -11318,8 +11331,19 @@ function renderTiSkorOzet() {
   const baslangic = (tiSkorSayfa - 1) * TI_SAYFA_BOYUTU;
   const sayfaIsimleri = isimler.slice(baslangic, baslangic + TI_SAYFA_BOYUTU);
 
+  // Filtrelenmiş veriden (SADECE bu görünümdeki kayıtlardan) skor hesapla —
+  // getTeknikIncelemeSkorForInspector() TÜM veriye baktığı için burada
+  // kullanılamaz.
+  const skorHesapla = (ins) => {
+    const cevaplar = filtreliSkorlar.filter(r => r.inspector === ins);
+    let maxToplam = 0, kazanilanToplam = 0;
+    cevaplar.forEach(r => { maxToplam += (Number(r.maxPuan)||0); kazanilanToplam += (Number(r.kazanilanPuan)||0); });
+    const percent = maxToplam > 0 ? Math.round((kazanilanToplam/maxToplam)*100) : 0;
+    return { percent, count: cevaplar.length, seviye: getPerformanceLevelLabel(percent) };
+  };
+
   const rows = sayfaIsimleri.map(ins => {
-    const s = getTeknikIncelemeSkorForInspector(ins);
+    const s = skorHesapla(ins);
     const color = getProgressColor(s.percent);
     return `<tr>
       <td style="padding:8px 10px;font-size:13px;color:var(--navy);font-weight:500">${_escapeHtml(_formatDisplayName(ins))}</td>
@@ -11338,6 +11362,41 @@ function renderTiSkorOzet() {
     <tbody>${rows}</tbody>
   </table>
   ${_tiSayfalamaHtml(tiSkorSayfa, toplamSayfa, 'tiSkorOncekiSayfa', 'tiSkorSonrakiSayfa')}`;
+}
+
+// ─── Teknik İnceleme Skorları Özetini Excel'e Aktar (kullanıcı talebiyle) ───
+function exportTiSkorOzetToExcel() {
+  const fInspector = (document.getElementById('ti-skor-filtre-inspector')?.value || '').trim().toLocaleLowerCase('tr-TR');
+  const fBaslangic = document.getElementById('ti-skor-filtre-baslangic')?.value || '';
+  const fBitis = document.getElementById('ti-skor-filtre-bitis')?.value || '';
+  const filtreliSkorlar = teknikSkorlar.filter(r => {
+    if (fInspector && !String(r.inspector || '').toLocaleLowerCase('tr-TR').includes(fInspector)) return false;
+    if (fBaslangic && (!r.tarih || r.tarih < fBaslangic)) return false;
+    if (fBitis && (!r.tarih || r.tarih > fBitis)) return false;
+    return true;
+  });
+  const isimler = Array.from(new Set(filtreliSkorlar.map(r => r.inspector))).sort((a,b) => a.localeCompare(b, 'tr'));
+  if (!isimler.length) { alert('⚠️ Dışa aktarılacak (filtreye uyan) veri yok.'); return; }
+
+  const data = isimler.map(ins => {
+    const cevaplar = filtreliSkorlar.filter(r => r.inspector === ins);
+    let maxToplam = 0, kazanilanToplam = 0;
+    cevaplar.forEach(r => { maxToplam += (Number(r.maxPuan)||0); kazanilanToplam += (Number(r.kazanilanPuan)||0); });
+    const percent = maxToplam > 0 ? Math.round((kazanilanToplam/maxToplam)*100) : 0;
+    return {
+      'Inspector': _formatDisplayName(ins),
+      'Skor (%)': percent,
+      'Seviye': getPerformanceLevelLabel(percent),
+      'Madde Cevabı Sayısı': cevaplar.length
+    };
+  });
+
+  const workbook = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{wch:24},{wch:12},{wch:16},{wch:20}];
+  XLSX.utils.book_append_sheet(workbook, ws, 'Teknik İnceleme Skorları');
+  const tarihStr = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(workbook, `Teknik_Inceleme_Skorlari_${tarihStr}.xlsx`);
 }
 
 // ─── ADMIN: Kriter Yönetimi ───
@@ -11431,9 +11490,27 @@ function renderTiKayitlarTablo() {
     </div>`;
     return;
   }
+  // Filtreler: Inspector adı (serbest arama) + tarih aralığı
+  const fInspector = (document.getElementById('ti-kayit-filtre-inspector')?.value || '').trim().toLocaleLowerCase('tr-TR');
+  const fBaslangic = document.getElementById('ti-kayit-filtre-baslangic')?.value || '';
+  const fBitis = document.getElementById('ti-kayit-filtre-bitis')?.value || '';
+
   // Not: teknikSkorlar artık madde madde değil, her satır tek bir değerlendirme
   // özeti (bkz. saveTeknikIncelemeKaydi) — gruplamaya gerek yok.
-  const satirlar = teknikSkorlar.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  let satirlar = teknikSkorlar.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  satirlar = satirlar.filter(g => {
+    if (fInspector && !String(g.inspector || '').toLocaleLowerCase('tr-TR').includes(fInspector)) return false;
+    if (fBaslangic && (!g.tarih || g.tarih < fBaslangic)) return false;
+    if (fBitis && (!g.tarih || g.tarih > fBitis)) return false;
+    return true;
+  });
+  if (!satirlar.length) {
+    wrap.innerHTML = `<div class="empty" style="padding:20px">
+      <div class="empty-icon">📋</div>
+      <h3>Filtreye uyan kayıt bulunamadı</h3>
+    </div>`;
+    return;
+  }
   const basariliSayisi = satirlar.filter(g => (g.skorYuzde ?? 0) >= TI_BASARI_ESIGI).length;
   const toplamSayfa = Math.max(1, Math.ceil(satirlar.length / TI_SAYFA_BOYUTU));
   if (tiKayitSayfa > toplamSayfa) tiKayitSayfa = toplamSayfa;
@@ -11478,7 +11555,17 @@ function renderTiKayitlarTablo() {
 // ─── İkinci Inspection Kayıtlarını Excel'e Aktar (kullanıcı talebiyle) ───
 function exportIkinciInspectionToExcel() {
   if (!ikinciInspectionData.length) { alert('⚠️ Henüz dışa aktarılacak İkinci Inspection kaydı yok.'); return; }
-  const satirlar = ikinciInspectionData.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  const fInspector = (document.getElementById('ii-kayit-filtre-inspector')?.value || '').trim().toLocaleLowerCase('tr-TR');
+  const fBaslangic = document.getElementById('ii-kayit-filtre-baslangic')?.value || '';
+  const fBitis = document.getElementById('ii-kayit-filtre-bitis')?.value || '';
+  let satirlar = ikinciInspectionData.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  satirlar = satirlar.filter(r => {
+    if (fInspector && !String(r.inspector || '').toLocaleLowerCase('tr-TR').includes(fInspector)) return false;
+    if (fBaslangic && (!r.tarih || r.tarih < fBaslangic)) return false;
+    if (fBitis && (!r.tarih || r.tarih > fBitis)) return false;
+    return true;
+  });
+  if (!satirlar.length) { alert('⚠️ Filtreye uyan (dışa aktarılacak) kayıt yok.'); return; }
 
   const data = satirlar.map(r => ({
     'Sipariş Kodu': r.siparisKodu || '',
@@ -11514,7 +11601,25 @@ function renderIkinciInspectionTablo() {
     </div>`;
     return;
   }
-  const satirlar = ikinciInspectionData.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  // Filtreler: Inspector adı (serbest arama) + tarih aralığı
+  const fInspector = (document.getElementById('ii-kayit-filtre-inspector')?.value || '').trim().toLocaleLowerCase('tr-TR');
+  const fBaslangic = document.getElementById('ii-kayit-filtre-baslangic')?.value || '';
+  const fBitis = document.getElementById('ii-kayit-filtre-bitis')?.value || '';
+
+  let satirlar = ikinciInspectionData.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''));
+  satirlar = satirlar.filter(r => {
+    if (fInspector && !String(r.inspector || '').toLocaleLowerCase('tr-TR').includes(fInspector)) return false;
+    if (fBaslangic && (!r.tarih || r.tarih < fBaslangic)) return false;
+    if (fBitis && (!r.tarih || r.tarih > fBitis)) return false;
+    return true;
+  });
+  if (!satirlar.length) {
+    wrap.innerHTML = `<div class="empty" style="padding:20px">
+      <div class="empty-icon">🔎</div>
+      <h3>Filtreye uyan kayıt bulunamadı</h3>
+    </div>`;
+    return;
+  }
   const rows = satirlar.map(r => {
     const gecti = r.sonuc === 'Geçti';
     const durumHtml = gecti
