@@ -11357,11 +11357,23 @@ async function duzenleTeknikInceleme(id) {
   }
 }
 
-// Düzenleme modundan çık (form olduğu gibi kalır, sadece "Kaydet" tekrar
-// YENİ kayıt oluşturur hale döner)
+// Düzenleme modundan çık VE formu tamamen kapat/temizle (kullanıcı talebiyle:
+// "iptal butonuna basınca düzenleme ekranı kaybolsun"). Sadece düzenleme
+// modundan çıkmak yetmiyordu çünkü Talep No dolu kaldığı için kriter formu
+// açık kalmaya devam ediyordu — bu yüzden Talep No'yu da temizleyip formu
+// "kayıt sonrası" boş durumuna döndürüyoruz.
 function iptalTeknikDuzenleme() {
   _tiDuzenlemeId = null;
-  renderTeknikKriterForm();
+  const talepInp = document.getElementById('ti-talep-secili');
+  if (talepInp) talepInp.value = '';
+  const kriterWrap = document.getElementById('ti-kriter-list');
+  if (kriterWrap) {
+    kriterWrap.innerHTML = `<div class="empty" style="padding:20px">
+      <div class="empty-icon">✕</div>
+      <h3>Düzenleme iptal edildi</h3>
+      <p>Yeni bir değerlendirme için yukarıdan Talep No girin</p>
+    </div>`;
+  }
 }
 
 // ─── Skor Özeti Tablosu ───
