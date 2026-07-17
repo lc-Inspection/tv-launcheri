@@ -4694,7 +4694,7 @@ function exportInspectorDetail() {
       'Toplam Adet':          kd.adet || 0,
       'Standart Süre':        fmtSnExcel(ham),
       'Standart Süre (sn)':   ham || 0,
-      'Performansta Kullanılan Standart Süre': tavanliMi ? fmtSnExcel(kd.standartSure) + ' (kısa kayıt tavanı)' : '—',
+      'Performansta Kullanılan Standart Süre': tavanliMi ? fmtSnExcel(kd.standartSure) + ' (tavanlandı)' : '—',
       'Gerçekleşen Süre':     fmtSnExcel(kd.kayitFiiliSure),
       'Gerçekleşen (sn)':     kd.kayitFiiliSure || 0,
       'Oran (Std./Ger.)':     oranHesapla(kd.standartSure, kd.kayitFiiliSure),
@@ -6014,6 +6014,26 @@ function performansHesapla(){
     return 1.3;
   }
 
+  // ── ADET ARTTIKÇA KADEMELİ VERİMLİLİK KATSAYISI (kullanıcı talebiyle
+  // eklendi) ────────────────────────────────────────────────────────────
+  // Büyük partilerde (ör. 200, 315 adet) inspector aynı ürünü art arda
+  // yaptığı için pratik kazanır — birim başına gerçek süre, tek tek/az
+  // sayıda yapılan işe göre daha kısadır. Standart Süre'nin, tek bir sabit
+  // sayıya (ör. "3 saat") tavanlanması KLASMANLAR ARASI FARKI yok sayar ve
+  // gerçekçi değildir — bunun yerine her klasmanın KENDİ birim süresine
+  // ORANTILI olarak düşen bir katsayı uygulanır (Ürün Kabul katsayısıyla
+  // aynı kademeli mantık, ama azalan yönde). Böylece her klasman kendi
+  // gerçek zorluğuna göre farklı bir Standart Süre'ye iner, hiçbiri aynı
+  // sabit değere sabitlenmez.
+  function getAdetVerimlilikKatsayisi(adet) {
+    if (adet <= 32)  return 1.00;   // küçük parti — indirim yok
+    if (adet <= 80)  return 0.92;   // %8 verimlilik kazancı
+    if (adet <= 125) return 0.80;   // %20
+    if (adet <= 200) return 0.60;   // %40
+    if (adet <= 315) return 0.50;   // %50
+    return 0.42;                    // 315+ adet — %58
+  }
+
   function normalize(str) { return String(str).toLowerCase().trim().replace(/[^\w]/g,''); }
   const klasmanMap = {};
   klasmanlar.forEach(k => {
@@ -6205,13 +6225,14 @@ function performansHesapla(){
       tarihHataliKayitlar++;
     }
 
-    // Standart süre hesaplama (adet sayısına bakılmaksızın aynı formül):
-    // (kontrol süresi × adet) + ölçü eki + ürün kabul eki + istasyon süresi
+    // Standart süre hesaplama:
+    // ((kontrol süresi × adet) + ölçü eki + ürün kabul eki + istasyon süresi) × adet verimlilik katsayısı
     const olcuAdet = getOlcuAdet(adet);
     const urunKabulKat = getUrunKabulKat(adet);
     const olcuEk = olcuAdet * (klasmanInfo.olcuSuresi || 0);
     const urunKabulEk = urunKabulKat * (klasmanInfo.urunKabulSuresi || 0);
-    let standartSure = (klasmanInfo.urunKontrolSuresi * adet) + olcuEk + urunKabulEk + klasmanInfo.istasyonSuresi;
+    const adetVerimlilikKat = getAdetVerimlilikKatsayisi(adet);
+    let standartSure = ((klasmanInfo.urunKontrolSuresi * adet) + olcuEk + urunKabulEk + klasmanInfo.istasyonSuresi) * adetVerimlilikKat;
     // Tavanlama ÖNCESİ ham değeri ayrıca sakla — SADECE gösterim/dokümantasyon
     // (Excel, panel özet başlığı) için kullanılır. Verimlilik Perf/Oran
     // hesabı hâlâ aşağıdaki tavanlanmış standartSure'u kullanmaya devam eder
@@ -11324,6 +11345,7 @@ async function kaydetTeknikInceleme() {
     }
     renderTiSkorOzet();
     if (!currentUser || currentUser.isAdmin) renderTiKayitlarTablo();
+    renderTiDashboard();
     // Dashboard kartlarında da güncel görünsün
     if (typeof renderDashboard === 'function' && document.getElementById('inspector-grid')) renderDashboard();
   } catch(e) {
