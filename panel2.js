@@ -342,7 +342,7 @@ function aoApplyFilters() {
   else if (sf === 'tarih-asc') list.sort(function(a,b){ return new Date(a.baslangic||0)-new Date(b.baslangic||0); });
 
   var fAdet = list.reduce(function(s,k){ return s+k.adet; }, 0);
-  var fStd  = list.reduce(function(s,k){ return s+k.standartSure; }, 0);
+  var fStd  = list.reduce(function(s,k){ return s+(k.standartSureHam != null ? k.standartSureHam : k.standartSure); }, 0);
   document.getElementById('ao-f-summary').textContent = list.length + ' ' + (translations[currentLang]||translations.tr).records_summary + fAdet + ' ' + (translations[currentLang]||translations.tr).units_summary + _aoFmtSn(fStd);
 
   // Gruplama
@@ -353,7 +353,7 @@ function aoApplyFilters() {
   Object.keys(gruplar).forEach(function(kAd) {
     var kayitlar = gruplar[kAd];
     var gAdet  = kayitlar.reduce(function(s,k){ return s+k.adet; }, 0);
-    var gStd   = kayitlar.reduce(function(s,k){ return s+k.standartSure; }, 0);
+    var gStd   = kayitlar.reduce(function(s,k){ return s+(k.standartSureHam != null ? k.standartSureHam : k.standartSure); }, 0);
     var gFiili = kayitlar.reduce(function(s,k){ return s+k.kayitFiiliSure; }, 0);
     var gOrt   = gAdet > 0 && gFiili > 0 ? Math.round(gFiili / gAdet) : null;
 
@@ -383,9 +383,10 @@ function aoApplyFilters() {
         + '<td style="font-weight:600;color:#0B1F3A;">' + k.klasman + '</td>'
         + '<td style="font-weight:700;font-size:14px;text-align:center;">' + k.adet + '</td>'
         + '<td style="color:#1565C0;font-family:monospace;text-align:center;">' + k.kontrolAdetSuresi + 'sn</td>'
-        + '<td style="text-align:right;font-family:monospace;"><span style="color:#1565C0;">' + _aoFmtSn(k.kontrolAdetSuresi * k.adet) + '</span>'
-          + (k.istasyonSuresi > 0 ? '<div style="font-size:10px;color:#5A7FA8;">+ ' + _aoFmtSn(k.istasyonSuresi) + ' ist.</div>' : '')
-          + '<div style="font-weight:700;">' + _aoFmtSn(k.standartSure) + '</div></td>'
+        + '<td style="text-align:right;font-family:monospace;"><span style="color:#1565C0;">' + _aoFmtSn(k.standartSureHam != null ? k.standartSureHam : k.standartSure) + '</span>'
+          + ((k.standartSureHam != null && Math.round(k.standartSureHam) !== Math.round(k.standartSure))
+              ? '<div style="font-size:10px;color:#E65100;font-weight:600;">⚠ kısa kayıt tavanı: ' + _aoFmtSn(k.standartSure) + '</div>'
+              : '') + '</td>'
         + '<td style="font-family:monospace;color:' + (k.kayitFiiliSure > 0 ? '#00897B' : '#5A7FA8') + ';text-align:right;">' + (k.kayitFiiliSure > 0 ? _aoFmtSn(k.kayitFiiliSure) : (k.tarihGecerli ? _aoFmtSn(0) : '—')) + '</td>'
         + '<td style="font-family:monospace;font-weight:700;color:' + ortColor + ';text-align:center;">'
           + (ortSn !== null ? ortSn + 'sn<div style="font-size:9px;font-weight:400;">' + (k.kontrolAdetSuresi <= 0 ? '✓ kayıt var' : ortSn <= k.kontrolAdetSuresi ? '✓ hedef' : '↑ hedefin üstü') + '</div>' : (k.tarihGecerli === false ? '—<div style="font-size:9px;color:#5A7FA8;">tarih yok</div>' : '—<div style="font-size:9px;color:#5A7FA8;">süre hesaplanamadı</div>'))
