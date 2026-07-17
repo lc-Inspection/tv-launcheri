@@ -249,13 +249,9 @@
 
       <!-- Özet İstatistikler -->
       <div class="summary-stats">
-        <div class="summary-stat" style="background:linear-gradient(135deg,var(--lgreen) 0%,#fff 100%);border-color:#B2DFDB;cursor:pointer" onclick="showPerfSeviyeDetay('excellent')">
-          <div class="summary-stat-value" id="excellent-count" style="color:var(--green)">0</div>
-          <div class="summary-stat-label" data-i18n="stat_excellent">Mükemmel (≥95%)</div>
-        </div>
         <div class="summary-stat" style="background:linear-gradient(135deg,var(--lblue2) 0%,#fff 100%);border-color:var(--lblue);cursor:pointer" onclick="showPerfSeviyeDetay('good')">
           <div class="summary-stat-value" id="good-count" style="color:var(--blue)">0</div>
-          <div class="summary-stat-label" data-i18n="stat_good">İyi (85-94%)</div>
+          <div class="summary-stat-label" data-i18n="stat_good">İyi (≥85%)</div>
         </div>
         <div class="summary-stat" style="background:linear-gradient(135deg,var(--lamber) 0%,#fff 100%);border-color:#FFE082;cursor:pointer" onclick="showPerfSeviyeDetay('average')">
           <div class="summary-stat-value" id="average-count" style="color:var(--amber)">0</div>
@@ -263,11 +259,11 @@
         </div>
         <div class="summary-stat" style="background:linear-gradient(135deg,var(--lred) 0%,#fff 100%);border-color:#FFCDD2;cursor:pointer" onclick="showPerfSeviyeDetay('weak')">
           <div class="summary-stat-value" id="poor-count" style="color:#EF5350">0</div>
-          <div class="summary-stat-label" data-i18n="stat_poor">Zayıf (50-69%)</div>
+          <div class="summary-stat-label" data-i18n="stat_poor">Gelişime Açık (50-69%)</div>
         </div>
         <div class="summary-stat" style="background:linear-gradient(135deg,#FFEBEE 0%,#fff 100%);border-color:#EF9A9A;cursor:pointer" onclick="showPerfSeviyeDetay('verypoor')">
           <div class="summary-stat-value" id="verypoor-count" style="color:#B71C1C">0</div>
-          <div class="summary-stat-label" data-i18n="stat_verypoor">Çok Zayıf (&lt;50%)</div>
+          <div class="summary-stat-label" data-i18n="stat_verypoor">Zayıf (&lt;50%)</div>
         </div>
         <div class="summary-stat" style="background:linear-gradient(135deg,var(--lgreen) 0%,#fff 100%);border-color:#B2DFDB">
           <div class="summary-stat-value" id="avg-performance" style="color:var(--green)">0%</div>
@@ -289,11 +285,10 @@
           <label data-i18n="filter_perf">Performans Filtresi:</label>
           <select id="perf-filter" onchange="filterInspectors()">
             <option value="" data-i18n="filter_all">All</option>
-            <option value="excellent" data-i18n="opt_excellent">Excellent (≥95%)</option>
-            <option value="good" data-i18n="stat_good">İyi (85-94%)</option>
+            <option value="good" data-i18n="stat_good">İyi (≥85%)</option>
             <option value="average" data-i18n="stat_average">Orta (70-84%)</option>
-            <option value="poor" data-i18n="stat_poor">Zayıf (50-69%)</option>
-            <option value="verypoor" data-i18n="stat_verypoor">Çok Zayıf (&lt;50%)</option>
+            <option value="poor" data-i18n="stat_poor">Gelişime Açık (50-69%)</option>
+            <option value="verypoor" data-i18n="stat_verypoor">Zayıf (&lt;50%)</option>
           </select>
         </div>
         <div class="filter-group">
