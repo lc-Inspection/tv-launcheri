@@ -11705,7 +11705,26 @@ function exportIkinciInspectionToExcel() {
 function showIiNotPopup(id) {
   const rec = ikinciInspectionData.find(r => String(r.id) === String(id));
   if (!rec) return;
-  alert(`📝 Not — ${_formatDisplayName(rec.inspector || '')} (${rec.talepNo || '—'})\n\n${rec.notAlani || '(not girilmemiş)'}`);
+
+  const modal = document.createElement('div');
+  modal.id = 'ii-not-popup-overlay';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(11,31,58,.65);z-index:9998;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:14px;width:min(520px,92vw);max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+      <div style="background:var(--navy);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#fff">📝 Not</div>
+          <div style="font-size:12px;color:#9FACC9;margin-top:3px">${_escapeHtml(_formatDisplayName(rec.inspector || ''))} · Talep No: <strong style="color:#fff">${_escapeHtml(rec.talepNo || '—')}</strong></div>
+        </div>
+        <button onclick="document.getElementById('ii-not-popup-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">✕</button>
+      </div>
+      <div style="padding:18px 20px;overflow-y:auto;flex:1;font-size:13px;line-height:1.6;color:var(--navy);white-space:pre-wrap">${_escapeHtml(rec.notAlani || '(not girilmemiş)')}</div>
+      <div style="padding:12px 20px;border-top:1px solid var(--border2);flex-shrink:0;text-align:right">
+        <button onclick="document.getElementById('ii-not-popup-overlay').remove()" style="background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:12.5px;font-weight:600">Kapat</button>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 function renderIkinciInspectionTablo() {
