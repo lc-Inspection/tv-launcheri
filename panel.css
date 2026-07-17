@@ -200,7 +200,7 @@ label { font-size: 12px; font-weight: 500; color: var(--muted); display: block; 
 /* ─── SUMMARY STATS ─── */
 .summary-stats {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 14px;
   margin-bottom: 20px;
 }
