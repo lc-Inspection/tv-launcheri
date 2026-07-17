@@ -11429,13 +11429,15 @@ function renderTiSkorOzet() {
   const rows = sayfaIsimleri.map(ins => {
     const s = skorHesapla(ins);
     const color = getProgressColor(s.percent);
-    // Düzenle butonu: SADECE bu görünümde (filtreye göre) tam olarak 1 kaydı
-    // varsa gösterilir — birden fazla kayıt varsa hangisinin düzenleneceği
-    // belirsiz olur, o durumda "Tüm Değerlendirme Kayıtları" bölümünden
-    // (her satırda kendi Düzenle butonu var) düzenlemek gerekir.
-    const duzenleBtn = s.count === 1
-      ? `<button type="button" onclick="duzenleTeknikInceleme('${String(s.kayitlar[0].id).replace(/'/g,"\\'")}')" style="border:1px solid var(--lblue);background:var(--lblue3);color:var(--blue2);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:600;margin-left:8px">✏️ Düzenle</button>`
-      : (s.count > 1 ? `<span style="font-size:10.5px;color:var(--muted2);font-style:italic;margin-left:8px">(${s.count} kayıt — "Tüm Kayıtlar"dan düzenleyin)</span>` : '');
+    // Düzenle butonu HER ZAMAN gösterilir — birden fazla kayıt varsa, bunlar
+    // arasından savedAt'e göre EN SON (en güncel) girilen kayıt düzenlenir
+    // (kullanıcı talebiyle: "sadece en son girilen kayıt düzenlenebilsin").
+    let duzenleBtn = '';
+    if (s.count >= 1) {
+      const enSonKayit = s.kayitlar.slice().sort((a,b) => (b.savedAt||'').localeCompare(a.savedAt||''))[0];
+      const cokSayidaNotu = s.count > 1 ? ` title="${s.count} kayıttan en son girilen (${_escapeHtml(enSonKayit.tarih||'')}) düzenlenecek"` : '';
+      duzenleBtn = `<button type="button"${cokSayidaNotu} onclick="duzenleTeknikInceleme('${String(enSonKayit.id).replace(/'/g,"\\'")}')" style="border:1px solid var(--lblue);background:var(--lblue3);color:var(--blue2);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:600;margin-left:8px">✏️ Düzenle${s.count > 1 ? ' (en son)' : ''}</button>`;
+    }
     return `<tr>
       <td style="padding:8px 10px;font-size:13px;color:var(--navy);font-weight:500">${_escapeHtml(_formatDisplayName(ins))}</td>
       <td style="padding:8px 10px;font-size:13px;font-weight:700;color:${color}">${s.percent}%</td>
