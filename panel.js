@@ -11865,11 +11865,11 @@ function exportTiDashboardToExcel() {
     'Bugün Teknik Değerlendirme': s.tdBugun,
     'Hedef (Teknik Değ.)': hedefTD,
     'Ort. Teknik Değ./Gün (aktif gün bazlı)': s.tdOrtalama !== null ? Math.round(s.tdOrtalama * 10) / 10 : '—',
-    'Aktif Gün (Teknik Değ.)': s.tdGunSayisi,
+    'İş Günü (Teknik Değ.)': s.tdGunSayisi,
     'Bugün İkinci Inspection': s.iiBugun,
     'Hedef (İkinci Insp.)': hedefII,
     'Ort. İkinci Insp./Gün (aktif gün bazlı)': s.iiOrtalama !== null ? Math.round(s.iiOrtalama * 10) / 10 : '—',
-    'Aktif Gün (İkinci Insp.)': s.iiGunSayisi,
+    'İş Günü (İkinci Insp.)': s.iiGunSayisi,
     'İkinci Insp. Geçti/Toplam Oranı (%)': s.iiGeciOrani !== null ? s.iiGeciOrani : '—',
     'Genel Performans (%)': s.genelPerf !== null ? s.genelPerf : '—'
   }));
@@ -11899,16 +11899,59 @@ function renderTiDashboard() {
   teknikSkorlar.forEach(s => { if (s.degerlendiren) kullanicilar.add(s.degerlendiren); });
   ikinciInspectionData.forEach(r => { if (r.degerlendiren) kullanicilar.add(r.degerlendiren); });
 
+  // ── TAKVİM BAZLI İŞ GÜNÜ HESABI (kullanıcı talebiyle eklendi) ────────────
+  // Eskiden payda "aktif gün" (sadece kayıt girilen günler) idi — boş geçen
+  // günler hiç sayılmıyordu. Artık payda, değerlendiricinin İLK kaydından
+  // BUGÜNE kadar olan 6 günlük iş haftası (Pazar hariç) üzerinden hesaplanır;
+  // bu aralıktaki bir gün için değerlendiriciye Kayıp Zaman girişi varsa
+  // (kayipZamanData'da "inspector" alanı bu kullanıcıyla eşleşiyorsa) o gün
+  // nötr sayılıp paydadan çıkarılır — diğer tüm günler (kayıt girilsin/
+  // girilmesin) paydaya dahildir. Böylece mazeretsiz boş günler artık
+  // ortalamayı gerçekten düşürür.
+  function _isGunuSayisiHesapla(baslangicISO, bitisISO, kayipGunSeti) {
+    if (!baslangicISO || !bitisISO) return 0;
+    let sayac = 0;
+    const cur = new Date(baslangicISO + 'T00:00:00');
+    const end = new Date(bitisISO + 'T00:00:00');
+    if (isNaN(cur.getTime()) || isNaN(end.getTime()) || cur > end) return 0;
+    while (cur <= end) {
+      if (cur.getDay() !== 0) { // 0 = Pazar → haftalık izin günü, iş günü sayılmaz
+        const y = cur.getFullYear(), m = String(cur.getMonth()+1).padStart(2,'0'), d = String(cur.getDate()).padStart(2,'0');
+        const dateStr = `${y}-${m}-${d}`;
+        if (!kayipGunSeti.has(dateStr)) sayac++;
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    return sayac;
+  }
+
   const satirlar = Array.from(kullanicilar).sort((a,b) => a.localeCompare(b,'tr')).map(kullanici => {
     const tdKayitlari = teknikSkorlar.filter(s => s.degerlendiren === kullanici);
-    const tdGunSet = new Set(tdKayitlari.map(s => s.tarih).filter(Boolean));
     const tdBugun = tdKayitlari.filter(s => s.tarih === bugun).length;
-    const tdOrtalama = tdGunSet.size > 0 ? (tdKayitlari.length / tdGunSet.size) : null;
 
     const iiKayitlari = ikinciInspectionData.filter(r => r.degerlendiren === kullanici);
-    const iiGunSet = new Set(iiKayitlari.map(r => r.tarih).filter(Boolean));
     const iiBugun = iiKayitlari.filter(r => r.tarih === bugun).length;
-    const iiOrtalama = iiGunSet.size > 0 ? (iiKayitlari.length / iiGunSet.size) : null;
+
+    // Bu değerlendiricinin kendi adına (inspector alanı üzerinden) girilmiş
+    // Kayıp Zaman günlerini topla — normalize edilmiş (YYYY-MM-DD) tarih seti.
+    const kullaniciNorm = String(kullanici || '').toLocaleLowerCase('tr-TR').trim();
+    const kayipGunSeti = new Set(
+      kayipZamanData
+        .filter(r => String(r.inspector || '').toLocaleLowerCase('tr-TR').trim() === kullaniciNorm)
+        .map(r => formatTarihKisaISO(r.tarih))
+        .filter(Boolean)
+    );
+
+    // İş takvimi aralığı: bu kullanıcının (her iki metrikten) EN ERKEN
+    // kaydından bugüne kadar. Hiç kaydı yoksa (teorik olarak imkansız, çünkü
+    // kullanıcı zaten bu listeye bir kayıttan dolayı girdi) 0 iş günü kabul edilir.
+    const tumTarihler = [...tdKayitlari.map(s=>s.tarih), ...iiKayitlari.map(r=>r.tarih)]
+      .filter(Boolean).sort();
+    const baslangicISO = tumTarihler.length ? tumTarihler[0] : null;
+    const isGunuSayisi = _isGunuSayisiHesapla(baslangicISO, bugun, kayipGunSeti);
+
+    const tdOrtalama = isGunuSayisi > 0 ? (tdKayitlari.length / isGunuSayisi) : null;
+    const iiOrtalama = isGunuSayisi > 0 ? (iiKayitlari.length / isGunuSayisi) : null;
 
     // İkinci Inspection Sonuç Oranı (%) = Geçti sayısı ÷ Toplam kayıt sayısı.
     // Veri yoksa null (— olarak gösterilir), "ne ödül ne ceza" ilkesiyle tutarlı.
@@ -11924,9 +11967,9 @@ function renderTiDashboard() {
     const oranlar = [tdOran, iiOran].filter(o => o !== null);
     const genelPerf = oranlar.length > 0 ? Math.round(oranlar.reduce((a,b)=>a+b,0) / oranlar.length) : null;
 
-    return { kullanici, tdBugun, tdOrtalama, tdGunSayisi: tdGunSet.size,
+    return { kullanici, tdBugun, tdOrtalama, tdGunSayisi: isGunuSayisi,
              iiGeciSayisi, iiGeciOrani,
-             iiBugun, iiOrtalama, iiGunSayisi: iiGunSet.size, genelPerf };
+             iiBugun, iiOrtalama, iiGunSayisi: isGunuSayisi, genelPerf };
   });
   window._tiDashboardSatirlari = satirlar; // Excel'e aktarım için önbellek
 
@@ -11950,9 +11993,9 @@ function renderTiDashboard() {
     <tr>
       <td style="padding:8px 10px;font-size:12.5px;font-weight:600;color:var(--navy)">${_escapeHtml(_formatDisplayName(s.kullanici))}</td>
       <td style="padding:8px 10px;text-align:center">${bugunRozet(s.tdBugun, hedefTD)}</td>
-      <td style="padding:8px 10px;text-align:center;font-size:12px">${rozet(s.tdOrtalama, hedefTD)} <span style="color:var(--muted2);font-size:10.5px">(${s.tdGunSayisi} aktif gün)</span></td>
+      <td style="padding:8px 10px;text-align:center;font-size:12px">${rozet(s.tdOrtalama, hedefTD)} <span style="color:var(--muted2);font-size:10.5px">(${s.tdGunSayisi} iş günü)</span></td>
       <td style="padding:8px 10px;text-align:center">${bugunRozet(s.iiBugun, hedefII)}</td>
-      <td style="padding:8px 10px;text-align:center;font-size:12px">${rozet(s.iiOrtalama, hedefII)} <span style="color:var(--muted2);font-size:10.5px">(${s.iiGunSayisi} aktif gün)</span></td>
+      <td style="padding:8px 10px;text-align:center;font-size:12px">${rozet(s.iiOrtalama, hedefII)} <span style="color:var(--muted2);font-size:10.5px">(${s.iiGunSayisi} iş günü)</span></td>
       <td style="padding:8px 10px;text-align:center">${genelPerfRozet(s.genelPerf)}</td>
     </tr>
   `).join('');
