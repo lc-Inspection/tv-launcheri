@@ -8,7 +8,7 @@
 // HATASIZ olması ve kurulumu (install) hiçbir koşulda BLOKE ETMEMESİ
 // gerekir — aksi halde register() reddedilir ve blob'a düşülür.
 
-const CACHE_NAME = 'ip-v4';
+const CACHE_NAME = 'ip-v3';
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
