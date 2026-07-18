@@ -3098,3 +3098,238 @@ async function temizleTeknikVeIkinciInspectionVerileri() {
     if (btn) { btn.disabled = false; btn.textContent = '🗑️ Temizle'; }
   }
 }
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// INIT & EVENT LISTENERS
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+_teamManagersOpen = false; // Sayfa yuklenirken kesin olarak kapali baslat (guvenlik onlemi)
+loadData();
+loadKayipZamanFromLocalStorage();
+if (typeof updateKayipNavBadge === 'function') updateKayipNavBadge();
+loadConfig();
+renderListe();
+renderEditor();
+renderDashboard();
+renderPerfTabloFromData();
+updateSidebar();
+
+// Şifre kapısını başlat
+initPasswordGate();
+
+// Modal kapatma - dış tıklama
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+document.getElementById('detail-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeDetailModal();
+});
+
+// Drag & Drop desteği
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  this.style.borderColor = 'var(--blue3)';
+  this.style.backgroundColor = 'var(--lblue2)';
+});
+
+uploadZone.addEventListener('dragleave', function(e) {
+  e.preventDefault();
+  this.style.borderColor = 'var(--border)';
+  this.style.backgroundColor = 'var(--lblue3)';
+});
+
+uploadZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.style.borderColor = 'var(--border)';
+  this.style.backgroundColor = 'var(--lblue3)';
+  
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    const fileInput = document.getElementById('file-input');
+    fileInput.files = files;
+    excelYukle({ target: fileInput });
+  }
+});
+
+// Otomatik kaydetme (5 dakikada bir)
+setInterval(function() {
+  if (klasmanlar.length > 0 || performansData.length > 0) {
+    saveData();
+    console.log('🔄 Otomatik kaydetme yapıldı');
+  }
+}, 5 * 60 * 1000);
+
+// Sayfa kapatılırken uyarı
+window.addEventListener('beforeunload', function(e) {
+  const lastSaved = localStorage.getItem('lc_inspection_data');
+  if (lastSaved) {
+    try {
+      const data = JSON.parse(lastSaved);
+      const savedTime = new Date(data.savedAt || 0);
+      const now = new Date();
+      const diffMinutes = (now - savedTime) / (1000 * 60);
+      
+      if (diffMinutes > 10) {
+        e.preventDefault();
+        e.returnValue = 'Değişiklikleriniz kaydedilmemiş olabilir. Sayfadan çıkmak istediğinizden emin misiniz?';
+        return e.returnValue;
+      }
+    } catch (err) {
+      e.preventDefault();
+      e.returnValue = 'Verileriniz kaydedilmemiş olabilir. Sayfadan çıkmak istediğinizden emin misiniz?';
+      return e.returnValue;
+    }
+  }
+});
+
+// Sayfa görünürlük değişiminde slideshow'u duraklat
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden && slideshowActive) {
+    // Sayfa gizlendiğinde slideshow'u duraklat
+    if (slideshowInterval) {
+      clearInterval(slideshowInterval);
+    }
+    if (progressInterval) {
+      clearInterval(progressInterval);
+    }
+  } else if (!document.hidden && slideshowActive) {
+    // Sayfa tekrar görünür olduğunda slideshow'u devam ettir
+    startAutoSlide();
+  }
+});
+
+// Network durumu kontrolü
+window.addEventListener('online', function() {
+  console.log('🌐 İnternet bağlantısı geri geldi');
+});
+
+window.addEventListener('offline', function() {
+  console.log('🌐 İnternet bağlantısı kesildi - Veriler yerel olarak saklanmaya devam ediyor');
+});
+
+// Hover efektleri
+document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('mouseover', function(e) {
+    if (e.target.closest('.summary-stat')) {
+      const card = e.target.closest('.summary-stat');
+      const value = card.querySelector('.summary-stat-value');
+      if (value) value.style.transform = 'scale(1.05)';
+    }
+  });
+
+  document.addEventListener('mouseout', function(e) {
+    if (e.target.closest('.summary-stat')) {
+      const card = e.target.closest('.summary-stat');
+      const value = card.querySelector('.summary-stat-value');
+      if (value) value.style.transform = 'scale(1)';
+    }
+  });
+});
+
+// Başarı mesajı gösterimi
+function showSuccessMessage(message, duration = 3000) {
+  const notification = document.getElementById('save-notification');
+  notification.textContent = message;
+  notification.classList.add('show');
+  
+  setTimeout(() => {
+    notification.classList.remove('show');
+  }, duration);
+}
+
+// Hata mesajı gösterimi
+function showErrorMessage(message) {
+  alert('❌ Hata: ' + message);
+}
+
+// Versiyon kontrolü ve güncelleme bildirimi
+const APP_VERSION = '2.2.0';
+const LAST_VERSION_KEY = 'lc_inspection_last_version';
+
+function checkVersion() {
+  const lastVersion = localStorage.getItem(LAST_VERSION_KEY);
+  if (lastVersion !== APP_VERSION) {
+    console.log(`🎉 Inspection Panel güncellendi! v${lastVersion || '1.0.0'} → v${APP_VERSION}`);
+    localStorage.setItem(LAST_VERSION_KEY, APP_VERSION);
+    
+    if (lastVersion) {
+      showSuccessMessage(`🎉 Panel güncellendi! v${APP_VERSION}`, 5000);
+    }
+  }
+}
+
+checkVersion();
+
+// Son güncelleme tarihi gösterimi
+function showLastUpdateTime() {
+  try {
+    const saved = localStorage.getItem('lc_inspection_data');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.savedAt) {
+        const lastUpdate = new Date(data.savedAt);
+        const now = new Date();
+        const diffMinutes = Math.round((now - lastUpdate) / (1000 * 60));
+        
+        if (diffMinutes < 60) {
+          console.log(`📅 Son güncelleme: ${diffMinutes} dakika önce`);
+        } else if (diffMinutes < 1440) {
+          console.log(`📅 Son güncelleme: ${Math.round(diffMinutes/60)} saat önce`);
+        } else {
+          console.log(`📅 Son güncelleme: ${lastUpdate.toLocaleDateString('tr-TR')}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.log('📅 Son güncelleme bilgisi alınamadı');
+  }
+}
+
+// Sayfa yüklendiğinde son güncelleme zamanını göster
+showLastUpdateTime();
+
+// Konsol mesajları ve yardım
+console.log(`
+╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                    LC WAİKİKİ INSPECTION                                                     ║
+║                                   PERFORMANS PANELİ v${APP_VERSION}                                                     ║
+║                                                                                                              ║
+║  🎯 Inspector performanslarını analiz edin                                                                   ║
+║  📊 Excel verilerini yükleyin ve raporlayın                                                                 ║
+║  ⚙️  Klasman tanımlarını yönetin                                                                             ║
+║  🎬 Canlı gösterim ile büyük ekranda izleyin                                                                ║
+║                                                                                                              ║
+║  ✅ Performans Hesaplama: Standart Süre ÷ Mesai Süresi × 100                                                ║
+║  📅 Mesai Süresi: Günlük 7.5 saat × çalışma gün sayısı                                                     ║
+║  🎯 Hedef: %100 = tam verimlilik, %100+ = hedeften hızlı                                                    ║
+║                                                                                                              ║
+║  📺 CANLI GÖSTERİM KLAVYE KOMUTLARI (Tam Ekranda):                                                          ║
+║  • → / Space: Sonraki slide                                                                                 ║
+║  • ←: Önceki slide                                                                                           ║
+║  • P: Oynat/Duraklat                                                                                        ║
+║  • F: Tam ekran aç/kapat                                                                                    ║
+║  • Escape: Çıkış                                                                                            ║
+║  • Mouse: Sol yarı = önceki, sağ yarı = sonraki                                                             ║
+║                                                                                                              ║
+║  🔧 GENEL KLAVYE KISAYOLLARI:                                                                                ║
+║  • Ctrl+S: Kaydet                                                                                           ║
+║  • Ctrl+N: Yeni Klasman (Klasman sayfasında)                                                                ║
+║  • Escape: Modal Kapat                                                                                      ║
+║                                                                                                              ║
+║  📈 ÖZELLİKLER:                                                                                              ║
+║  • Gerçek zamanlı performans hesaplama                                                                      ║
+║  • Klasman bazında detaylı analiz                                                                           ║
+║  • Excel import/export desteği                                                                              ║
+║  • Responsive tasarım                                                                                       ║
+║  • Otomatik kaydetme                                                                                        ║
+║  • Drag & drop dosya yükleme                                                                                ║
+║  • Canlı slideshow gösterimi                                                                                ║
+║  • Tam ekran desteği                                                                                        ║
+║  • Sol panel: En iyi 10 inspector                                                                           ║
+║                                                                                                              ║
+║  💡 İPUCU: Performans verileri localStorage'da otomatik kaydedilir                                           ║
+║                                                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+`);
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
