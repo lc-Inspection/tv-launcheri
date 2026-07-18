@@ -1147,6 +1147,7 @@
         </div>
         <div class="ph-buttons">
           <button class="btn" onclick="loadTeknikInceleme()">🔄 Yenile</button>
+          <button id="ti-clear-all-btn" class="btn" onclick="temizleTeknikVeIkinciInspectionVerileri()" style="background:var(--lred);color:var(--red);border-color:#FFCDD2">🗑️ Temizle</button>
           <button class="btn" onclick="exportTiDashboardToExcel()" style="background:var(--lblue3);color:var(--blue2);border-color:var(--lblue)">📊 Performansı Excel'e Aktar</button>
         </div>
       </div>
@@ -1260,9 +1261,6 @@
             <button onclick="exportIkinciInspectionToExcel()" style="background:var(--lblue3);color:var(--blue2);border:1px solid var(--lblue);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">
               📊 Excel'e Aktar
             </button>
-            <button onclick="temizleIkinciInspectionVerileri()" id="ii-clear-btn" style="background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">
-              🗑️ Temizle
-            </button>
           </div>
         </div>
         <div class="card-body">
@@ -1334,9 +1332,6 @@
       <div class="card" style="margin-bottom:16px;overflow:hidden">
         <div class="card-header" style="padding:14px 16px;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px">
           <h2>📋 Tüm Değerlendirme Kayıtları</h2>
-          <button onclick="temizleTeknikIncelemeVerileri()" id="ti-clear-btn" style="background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">
-            🗑️ Temizle
-          </button>
         </div>
         <div class="card-body">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border2)">
