@@ -10601,7 +10601,7 @@ function _kayipZamanExcelIndirOlustur(records) {
   if (!records.length) { alert('Dışa aktarılacak veri yok.'); return; }
 
   const BOM = '\uFEFF';
-  const headers = ['Ekip Yöneticisi','Inspector','Tarih','Gün','Başlangıç','Bitiş','Süre (dk)','Süre (saat)','Sebep','Açıklama','Performans%','Kayıp Notu'];
+  const headers = ['Ekip Yöneticisi','Inspector','Tarih','Gün','Başlangıç','Bitiş','Süre (dk)','Süre (saat)','Sebep','Açıklama','Performans%','Kayıp Notu','Depo'];
 
   const rows = records.map(r => {
     const perfObj = performansData.find(p=>(p.ins||'').toLowerCase()===(r.inspector||'').toLowerCase());
@@ -10619,7 +10619,8 @@ function _kayipZamanExcelIndirOlustur(records) {
       r.sebep||'',
       r.aciklama||'',
       perf !== '' ? perf+'%' : '',
-      kayipNotu
+      kayipNotu,
+      r.depo||''
     ];
   });
 
